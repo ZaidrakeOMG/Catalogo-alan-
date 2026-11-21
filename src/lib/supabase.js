@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 const URL = import.meta.env.PUBLIC_SUPABASE_URL;
 const KEY = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 export const BUCKET = 'gripxell-celulares';
+// WhatsApp de ventas predeterminado (México: +52 1 871 328 5416).
+// Los administradores pueden sustituirlo desde Configuración.
+export const DEFAULT_WHATSAPP = '5218713285416';
 export const TABLES = Object.freeze({
   products: 'gripxell_celulares',
   settings: 'gripxell_configuracion',
