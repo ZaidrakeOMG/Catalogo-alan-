@@ -1,0 +1,88 @@
+name: Capturar portadas reales de invitaciones
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/data/catalog.ts'
+      - 'public/data/catalogo-adicional.json'
+      - 'scripts/capture-previews.mjs'
+      - '.github/workflows/capturar-invitaciones.yml'
+  workflow_dispatch:
+    inputs:
+      recapturar_todas:
+        description: 'Volver a generar todas las portadas'
+        type: boolean
+        required: false
+        default: false
+
+# Si se publican varias invitaciones seguidas, solo la última ejecución
+# necesita capturar el catálogo completo.
+concurrency:
+  group: cazami-capturas-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  capturar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verificar catálogo y administrador
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          npm run test:admin
+      - name: Instalar solo Playwright estable para capturas
+        run: |
+          cd scripts
+          npm init -y > /dev/null
+          npm install --no-save --package-lock=false --no-audit --no-fund --registry=https://registry.npmjs.org playwright@1.64.1
+      - name: Instalar Chromium
+        run: ./scripts/node_modules/.bin/playwright install chromium --with-deps
+      - name: Capturar sitios de invitaciones (no pases)
+        run: |
+          if [ "${{ inputs.recapturar_todas }}" = "true" ]; then
+            node scripts/capture-previews.mjs --force
+          else
+            node scripts/capture-previews.mjs
+          fi
+      - name: Guardar capturas en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Primero confirmar las capturas: hacer pull con imágenes sin guardar
+          # abortaba la ejecución y dejaba invitaciones nuevas sin portada.
+          git add public/invitation-previews/
+          if git diff --cached --quiet; then
+            echo "Las portadas ya están actualizadas."
+            exit 0
+          fi
+          git commit -m "CAZAMI: actualizar capturas reales de invitaciones"
+          # Reaplicar las nuevas imágenes sobre cualquier cambio publicado mientras
+          # Chromium trabajaba, sin descartar altas recientes del administrador.
+          for intento in 1 2 3; do
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort
+              echo "::error::No se pudieron conciliar las capturas con main."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "Portadas actualizadas en GitHub."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::No se pudieron publicar las capturas tras reintentar."
+          exit 1
