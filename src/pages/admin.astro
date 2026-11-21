@@ -1,43 +1,48 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Brand from '../components/Brand.astro';
+import '../styles/admin-premium.css';
 ---
 <Layout title="Administración | GRIPXELL" description="Área de administración privada del catálogo GRIPXELL.">
   <main class="admin-body">
     <section class="login-wrap" id="admin-login">
       <div class="login-card">
         <div class="login-logo"><Brand /></div>
-        <div class="login-card__heading"><span class="eyebrow">ACCESO PRIVADO</span><h1>Bienvenido de nuevo.</h1><p>Administra tu catálogo de celulares desde cualquier dispositivo.</p></div>
+        <div class="login-welcome-tag"><span class="dot-live"></span> PANEL PRIVADO · GRIPXELL STUDIO</div>
+        <div class="login-card__heading"><span class="eyebrow">ACCESO PRIVADO</span><h1>Tu tienda, <em>bajo control.</em></h1><p>Gestiona los modelos, crea fichas completas y mantén tu catálogo siempre actualizado desde un solo lugar.</p></div>
         <form id="login-form" class="form-stack">
           <label class="field"><span>Correo electrónico</span><input id="login-email" type="email" autocomplete="username" required placeholder="correo@ejemplo.com" /></label>
           <label class="field"><span>Contraseña</span><input id="login-password" type="password" autocomplete="current-password" required minlength="6" placeholder="Tu contraseña" /></label>
           <p id="login-error" class="form-error" role="alert" hidden></p>
           <button class="btn btn--dark btn--large btn--full" type="submit" id="login-submit">Entrar al panel <span aria-hidden="true">→</span></button>
         </form>
-        <p class="login-card__help">El acceso está reservado para administradores autorizados.</p>
+        <p class="login-card__help">Solo usuarios autorizados. Tus cambios se guardan directamente en Supabase.</p>
         <a class="login-card__back" href="/">← Regresar al catálogo</a>
       </div>
-      <div class="login-art"><div class="login-art__orbit"></div><div class="login-art__copy">EL CONTROL<br />DE TU <em>TIENDA.</em></div><div class="login-art__tag">GRIPXELL / ADMIN</div></div>
+      <div class="login-art"><div class="login-art__orbit"></div><div class="login-art__ambient"></div>
+          <div class="login-art__content"><span class="login-art__overline">TU CENTRO DE OPERACIONES</span><div class="login-art__copy">UNA TIENDA<br/><em>SIEMPRE LISTA.</em></div><p>Publica, organiza y presenta tus teléfonos con una experiencia de primer nivel.</p>
+          <div class="login-art__showcase"><img src="/demo/zte-blade-v70-max.png" alt="Modelo ZTE del catálogo"/><div><small>CATÁLOGO GRIPXELL</small><strong>Desde un solo lugar</strong><span>Inventario · Imágenes · Ventas</span></div></div></div><div class="login-art__tag">GRIPXELL / ADMIN STUDIO</div></div>
     </section>
 
     <section class="admin-app" id="admin-app" hidden>
       <aside class="admin-sidebar">
         <div class="admin-sidebar__brand"><Brand small={true} /></div>
-        <div class="admin-sidebar__eyebrow">MENÚ PRINCIPAL</div>
-        <nav class="admin-nav" aria-label="Administración"><button type="button" data-admin-tab="inventory" class="is-current"><span>▤</span> Inventario</button><button type="button" data-admin-tab="settings"><span>⚙</span> Configuración</button></nav>
-        <div class="admin-sidebar__foot"><a href="/" target="_blank" rel="noopener noreferrer">↗ Ver tienda</a><button type="button" id="logout-button">↪ Cerrar sesión</button></div>
+        <div class="admin-sidebar__eyebrow">TU ESPACIO DE TRABAJO</div>
+        <nav class="admin-nav" aria-label="Administración"><button type="button" data-admin-tab="inventory" class="is-current"><span aria-hidden="true">▦</span> Inventario</button><button type="button" data-admin-tab="settings"><span aria-hidden="true">⚙</span> Configuración</button></nav>
+        <div class="admin-sidebar__foot"><div class="admin-sidebar__online"><span class="dot-live"></span> Tu catálogo conectado</div><a href="/" target="_blank" rel="noopener noreferrer">↗ Ver tienda</a><button type="button" id="logout-button">↪ Cerrar sesión</button></div>
       </aside>
       <div class="admin-main">
-        <div class="admin-topbar"><span>GRIPXELL / PANEL DE CONTROL</span><div><a href="/" target="_blank" rel="noopener noreferrer">Vista de tienda ↗</a><span class="admin-topbar__avatar" aria-hidden="true">G</span></div></div>
+        <div class="admin-topbar"><span><span class="admin-topbar__breadcrumb">GRIPXELL</span><span class="admin-topbar__slash">/</span> ESTUDIO DE CATÁLOGO</span><div><span class="admin-topbar__email" id="admin-user-email"></span><a href="/" target="_blank" rel="noopener noreferrer">Vista pública ↗</a><span class="admin-topbar__avatar" aria-hidden="true">G</span></div></div>
         <div class="admin-content">
           <section id="admin-inventory-panel">
-            <div class="admin-page-head"><div><span class="eyebrow"><span class="eyebrow__line"></span> ADMINISTRACIÓN DE PRODUCTOS</span><h1>Tu inventario<span class="accent-dot">.</span></h1><p>Agrega modelos, cambia las fotos y publica cuando estén listos.</p></div><button id="new-product" type="button" class="btn btn--dark">+ Agregar celular</button></div>
-            <div class="stats-grid"><div class="stat-card"><span>MODELOS TOTALES</span><strong id="stat-total">—</strong><small>Registrados en la tienda</small></div><div class="stat-card"><span>PUBLICADOS</span><strong id="stat-published">—</strong><small>Visibles en el catálogo</small></div><div class="stat-card"><span>BORRADORES</span><strong id="stat-drafts">—</strong><small>Pendientes por completar</small></div></div>
-            <div class="admin-list-head"><h2>Modelos registrados</h2><label class="search-wrap"><span class="sr-only">Buscar por modelo</span><input id="admin-search" type="search" placeholder="Buscar modelo..." /></label></div>
+            <div class="admin-page-head"><div><span class="eyebrow"><span class="eyebrow__line"></span> PANEL DE INVENTARIO</span><h1>Controla cada <em>modelo.</em></h1><p>Todo lo que necesitas para presentar tus celulares, mantener sus fichas completas y preparar consultas de compra.</p></div><div class="admin-page-actions"><button id="refresh-products" type="button" class="btn btn--ghost admin-btn-refresh"><span aria-hidden="true">↻</span> Actualizar</button><button id="new-product" type="button" class="btn btn--dark"><span aria-hidden="true">＋</span> Nuevo celular</button></div></div>
+            <div class="admin-spotlight"><div class="admin-spotlight__copy"><span class="admin-spotlight__eyebrow"><span class="dot-live"></span> TU CATÁLOGO EN LÍNEA</span><h2>Cuida los detalles.<br/><em>Vende con una mejor presentación.</em></h2><p>Una ficha clara, fotografías sin fondo y un enlace directo ayudan a que cada cliente encuentre el modelo que busca.</p></div><div class="admin-spotlight__visual" aria-hidden="true"><div class="admin-spotlight__orbit"></div><img src="/demo/motorola-g06.png" alt="" /></div></div>
+            <div class="stats-grid"><div class="stat-card"><span>MODELOS TOTALES</span><strong id="stat-total">—</strong><small>En tu inventario</small><i aria-hidden="true">01 / TODO</i></div><div class="stat-card"><span>PUBLICADOS</span><strong id="stat-published">—</strong><small>Visibles en la tienda</small><i aria-hidden="true">02 / EN LÍNEA</i></div><div class="stat-card"><span>BORRADORES</span><strong id="stat-drafts">—</strong><small>Por completar o publicar</small><i aria-hidden="true">03 / PENDIENTES</i></div><div class="stat-card"><span>NO DISPONIBLES</span><strong id="stat-unavailable">—</strong><small>Marcados como agotados</small><i aria-hidden="true">04 / STOCK</i></div></div>
+            <div class="admin-list-head"><div><span class="eyebrow">DIRECTORIO DE PRODUCTOS</span><h2>Modelos registrados</h2><p id="admin-results-summary" aria-live="polite">Cargando inventario...</p></div><div class="admin-list-head__tools"><label class="search-wrap"><span class="sr-only">Buscar por modelo</span><input id="admin-search" type="search" placeholder="Buscar marca, modelo o memoria..." /></label><label class="admin-sort"><span class="sr-only">Ordenar modelos</span><select id="admin-sort"><option value="newest">Más recientes</option><option value="name">Nombre A–Z</option><option value="price">Mayor precio</option></select></label></div></div><div class="admin-filter-tabs" id="admin-filters" aria-label="Filtrar modelos por estado"><button type="button" class="is-active" data-admin-filter="all" aria-pressed="true">Todos <span id="filter-count-all">0</span></button><button type="button" data-admin-filter="published" aria-pressed="false">Publicados <span id="filter-count-published">0</span></button><button type="button" data-admin-filter="draft" aria-pressed="false">Borradores <span id="filter-count-draft">0</span></button><button type="button" data-admin-filter="unavailable" aria-pressed="false">Agotados <span id="filter-count-unavailable">0</span></button></div>
             <div id="admin-products" class="admin-products" aria-live="polite"><p>Cargando modelos...</p></div>
           </section>
           <section id="admin-settings-panel" hidden>
-            <div class="admin-page-head"><div><span class="eyebrow"><span class="eyebrow__line"></span> AJUSTES DE LA TIENDA</span><h1>Configuración<span class="accent-dot">.</span></h1><p>Personaliza el nombre, logotipo y atención por WhatsApp.</p></div></div>
+            <div class="admin-page-head"><div><span class="eyebrow"><span class="eyebrow__line"></span> PERSONALIZA TU MARCA</span><h1>Tu tienda, <em>tu estilo.</em></h1><p>Configura la identidad del catálogo y el canal de atención para tus clientes.</p></div></div><div class="settings-tip"><strong>Así te encontrarán tus clientes.</strong><p>El nombre, logotipo y WhatsApp se reflejan en el catálogo público. El número de ventas recibe el enlace del modelo seleccionado cuando alguien confirma su consulta.</p></div>
             <form id="settings-form" class="settings-card"><div class="settings-card__heading"><h2>Información pública</h2><p>Estos datos aparecerán en la tienda.</p></div><div class="fields-two"><label class="field"><span>Nombre comercial</span><input id="setting-name" required maxlength="70" /></label><label class="field"><span>Subtítulo</span><input id="setting-subtitle" maxlength="90" /></label></div><label class="field"><span>WhatsApp de ventas</span><input id="setting-whatsapp" inputmode="numeric" placeholder="528711234567" pattern="[1-9][0-9]{7,14}" /><small>Escribe 52 + 10 dígitos si es un número de México, sin el signo + ni espacios.</small></label><label class="field"><span>Logotipo (opcional)</span><input id="setting-logo" type="file" accept="image/png,image/jpeg,image/webp,image/avif" /><small>Puedes reemplazar el logotipo por tu imagen original de GRIPXELL.</small></label><div id="setting-logo-preview" class="settings-logo-preview"></div><div class="settings-actions"><button id="settings-submit" class="btn btn--dark" type="submit">Guardar cambios ↗</button><span id="settings-status" role="status"></span></div></form>
           </section>
         </div>
@@ -47,8 +52,9 @@ import Brand from '../components/Brand.astro';
 
   <dialog id="editor-dialog" class="editor-dialog" aria-labelledby="editor-title">
     <form id="editor-form" class="editor-card">
-      <div class="editor-header"><div><div class="eyebrow">CATÁLOGO / MODELO</div><h2 id="editor-title">Agregar celular</h2></div><button type="button" id="editor-close" class="dialog-close" aria-label="Cerrar formulario">×</button></div>
+      <div class="editor-header"><div><div class="eyebrow"><span class="dot-live"></span> EDITOR DE PRODUCTOS</div><h2 id="editor-title">Agregar celular</h2><p>Información, fotografías y publicación en un mismo lugar.</p></div><button type="button" id="editor-close" class="dialog-close" aria-label="Cerrar formulario">×</button></div>
       <div class="editor-body">
+        <div class="editor-form-content">
         <section class="import-card" aria-labelledby="import-title">
           <div class="import-card__intro"><span class="eyebrow">NUEVO · IMPORTACIÓN INTELIGENTE</span><h3 id="import-title">Sube la ficha y nosotros preparamos el modelo.</h3><p>Si tienes una imagen con el teléfono a la izquierda y las especificaciones a la derecha, procesaremos el recorte como <strong>PNG transparente</strong> y reconoceremos el texto mediante OCR. Revisa los campos antes de publicar.</p></div>
           <div class="import-card__layout">
@@ -78,6 +84,14 @@ import Brand from '../components/Brand.astro';
         <div class="editor-section-heading editor-section-heading--next"><span>04</span><div><h3>Visibilidad</h3><p>Elige cómo aparecerá este modelo en tu catálogo.</p></div></div>
         <div class="switch-grid"><label class="check-tile"><input name="publicado" type="checkbox" /><span><strong>Publicado</strong><small>Visible para todos</small></span></label><label class="check-tile"><input name="disponible" type="checkbox" checked /><span><strong>Disponible</strong><small>Permitir consultas de compra</small></span></label><label class="check-tile"><input name="destacado" type="checkbox" /><span><strong>Destacado</strong><small>Aparecerá primero</small></span></label></div>
         <p id="editor-error" class="form-error" role="alert" hidden></p>
+        </div>
+        <aside class="editor-preview" aria-label="Vista previa de la ficha de producto">
+          <span class="editor-preview__eyebrow">VISTA PREVIA EN TIENDA</span><h3>Así verá tu cliente el celular</h3>
+          <div class="editor-preview__card"><div class="editor-preview__art"><span class="editor-preview__image-badge" id="preview-publication-label">BORRADOR</span><img id="editor-live-image" alt="Fotografía principal del producto" src="/demo/zte-blade-a56-pendiente.svg"/></div><div class="editor-preview__card-details"><span id="editor-live-brand">MARCA</span><strong id="editor-live-model">Nombre del modelo</strong><small id="editor-live-capacity">Memoria y color</small><b id="editor-live-price">Consultar precio</b></div></div>
+          <div class="editor-preview__progress"><div><strong>Preparación de la ficha</strong><span id="editor-live-progress-text">0 de 3</span></div><div class="editor-preview__track"><i id="editor-live-progress-bar"></i></div></div>
+          <ul class="editor-preview__checklist"><li id="editor-check-name">Marca y modelo completos</li><li id="editor-check-description">Características y especificaciones</li><li id="editor-check-image">Fotografía principal del teléfono</li></ul>
+          <p class="editor-preview__hint">La vista previa se actualiza mientras escribes. Al guardar, los cambios aparecen en tu inventario.</p>
+        </aside>
       </div>
       <div class="editor-footer"><button type="button" id="editor-cancel" class="btn btn--ghost">Cancelar</button><button id="editor-save" type="submit" class="btn btn--dark">Guardar modelo ↗</button></div>
     </form>
