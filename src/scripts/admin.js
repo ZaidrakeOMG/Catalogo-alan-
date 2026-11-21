@@ -1,4 +1,4 @@
-import { supabase, TABLES, BUCKET, publicImageUrl, currency, slugify, cleanPhone, toast } from '../lib/supabase.js';
+import { supabase, TABLES, BUCKET, publicImageUrl, currency, slugify, cleanPhone, DEFAULT_WHATSAPP, toast } from '../lib/supabase.js';
 import { recortarTelefonoPNG, isHorizontalSheet } from '../lib/recorte-png.js';
 import { parseFichaOCR } from '../lib/ficha-automatica.js';
 
@@ -454,7 +454,7 @@ function fillSettings() {
   if (!state.settings) return;
   $('setting-name').value = state.settings.nombre_tienda || 'GRIPXELL';
   $('setting-subtitle').value = state.settings.subtitulo || 'SMART PHONES Y MÁS';
-  $('setting-whatsapp').value = state.settings.whatsapp_numero || '';
+  $('setting-whatsapp').value = state.settings.whatsapp_numero || DEFAULT_WHATSAPP;
   const preview = $('setting-logo-preview'); preview.replaceChildren();
   if (state.settings.logo_path) {
     const img = el('img'); img.alt = 'Logo actual de GRIPXELL'; img.src = publicImageUrl(state.settings.logo_path); preview.append(img);
