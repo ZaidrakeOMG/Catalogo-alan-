@@ -3,7 +3,7 @@ import { recortarTelefonoPNG, isHorizontalSheet } from '../lib/recorte-png.js';
 import { parseFichaOCR } from '../lib/ficha-automatica.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { products: [], settings: null, user: null, editId: null, filter: '', importedCover: null, analyzing: false };
+const state = { products: [], settings: null, user: null, editId: null, filter: '', statusFilter: 'all', sort: 'newest', importedCover: null, analyzing: false };
 const previewObjectUrls = new Map();
 const MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'];
 const PHOTO_TYPES = { cover:'foto_portada_path', front:'foto_frontal_path', right:'foto_lateral_derecha_path', back:'foto_trasera_path', left:'foto_lateral_izquierda_path' };
@@ -33,6 +33,7 @@ async function validateAdmin(user) {
 }
 async function switchToDashboard(user) {
   state.user = user;
+  $('admin-user-email').textContent = user.email || 'Administrador';
   $('admin-login').hidden = true;
   $('admin-app').hidden = false;
   await refreshDashboard();
@@ -91,6 +92,10 @@ async function refreshDashboard() {
   $('stat-total').textContent = state.products.length;
   $('stat-published').textContent = state.products.filter((p) => p.publicado).length;
   $('stat-drafts').textContent = state.products.filter((p) => !p.publicado).length;
+  $('stat-unavailable').textContent = state.products.filter((p) => !p.disponible).length;
+  for (const [key, predicate] of Object.entries({all: () => true, published: (p) => p.publicado, draft: (p) => !p.publicado, unavailable: (p) => !p.disponible})) {
+    $(`filter-count-${key}`).textContent = state.products.filter(predicate).length;
+  }
   renderProductList();
   fillSettings();
 }
@@ -98,8 +103,18 @@ async function refreshDashboard() {
 function renderProductList() {
   const root = $('admin-products'); root.replaceChildren();
   const query = state.filter.toLocaleLowerCase('es-MX').trim();
-  const products = state.products.filter((p) => [p.marca, p.modelo, p.capacidad, p.color]
-    .join(' ').toLocaleLowerCase('es-MX').includes(query));
+  const products = state.products.filter((p) => {
+    const matchesStatus = state.statusFilter === 'all' ||
+      (state.statusFilter === 'published' && p.publicado) ||
+      (state.statusFilter === 'draft' && !p.publicado) ||
+      (state.statusFilter === 'unavailable' && !p.disponible);
+    return matchesStatus && [p.marca, p.modelo, p.capacidad, p.color]
+      .filter(Boolean).join(' ').toLocaleLowerCase('es-MX').includes(query);
+  });
+  if (state.sort === 'name') products.sort((a,b) => `${a.marca} ${a.modelo}`.localeCompare(`${b.marca} ${b.modelo}`, 'es-MX'));
+  else if (state.sort === 'price') products.sort((a,b) => Number(b.precio_mxn || 0) - Number(a.precio_mxn || 0));
+  else products.sort((a,b) => new Date(b.creado_en || 0) - new Date(a.creado_en || 0));
+  $('admin-results-summary').textContent = `${products.length} de ${state.products.length} ${state.products.length === 1 ? 'modelo' : 'modelos'} en tu inventario`;
   if (!products.length) {
     const empty = el('div', 'empty-state');
     empty.append(el('div', 'empty-state__icon', '＋'), el('strong', '', query ? 'Sin resultados' : 'Todavía no hay modelos'),
@@ -119,6 +134,7 @@ function renderProductList() {
     meta.append(el('span', `status-pill${product.publicado ? '' : ' status-pill--draft'}`, product.publicado ? 'Publicado' : 'Borrador'));
     if (!product.disponible) meta.append(el('span', 'status-pill status-pill--unavailable', 'Agotado'));
     if (product.destacado) meta.append(el('span', 'status-pill', 'Destacado'));
+    if (!product.foto_portada_path && !product.foto_frontal_path && !product.foto_trasera_path) meta.append(el('span', 'status-pill status-pill--draft', 'Sin foto'));
     info.append(meta);
     const price = el('div', 'admin-product__price', currency(product.precio_mxn));
     const actions = el('div', 'admin-product__actions');
@@ -126,12 +142,31 @@ function renderProductList() {
     edit.addEventListener('click', () => openEditor(product));
     const remove = el('button', 'icon-action icon-action--danger', 'Eliminar'); remove.type = 'button';
     remove.addEventListener('click', () => deleteProduct(product));
-    actions.append(edit, remove);
+    const toggle = el('button','icon-action icon-action--publish', product.publicado ? 'Ocultar' : 'Publicar');
+    toggle.type = 'button'; toggle.title = product.publicado ? 'Quitar de la tienda pública' : 'Mostrar en la tienda pública';
+    toggle.addEventListener('click', () => toggleProductVisibility(product));
+    const open = el('a','icon-action icon-action--view','Ver');
+    open.href = `/?modelo=${encodeURIComponent(product.slug)}`; open.target = '_blank'; open.rel = 'noopener noreferrer';
+    open.setAttribute('aria-label', `Ver ${product.marca} ${product.modelo} en el catálogo`);
+    actions.append(open, toggle, edit, remove);
     row.append(visual, info, price, actions);
     root.append(row);
   }
 }
 
+async function toggleProductVisibility(product) {
+  if (!product.publicado && (!product.descripcion?.trim() || ![product.foto_portada_path,product.foto_frontal_path,product.foto_trasera_path].some(Boolean))) {
+    toast('Para publicar necesitas una descripción y al menos una fotografía. Completa la ficha.', 'error');
+    openEditor(product);
+    return;
+  }
+  try {
+    const { error } = await supabase().from(TABLES.products).update({publicado: !product.publicado}).eq('id', product.id);
+    if (error) throw error;
+    toast(product.publicado ? 'Modelo oculto del catálogo.' : 'Modelo publicado en el catálogo.');
+    await refreshDashboard();
+  } catch (error) { toast(`No se pudo actualizar: ${errorText(error)}`, 'error'); }
+}
 function switchTab(which) {
   const isInventory = which === 'inventory';
   $('admin-inventory-panel').hidden = !isInventory;
@@ -156,6 +191,7 @@ function renderPhotoPreview(side, source) {
     placeholder.append(el('small', '', `Subir ${PHOTO_LABELS[side]}`));
     node.append(placeholder);
   }
+  updateEditorPreview();
 }
 async function handlePreview(side) {
   const file = $(`image-${side}`).files?.[0];
@@ -173,6 +209,29 @@ async function handlePreview(side) {
     renderPhotoPreview(side, '');
     showError('editor-error', errorText(error));
   }
+}
+function updateEditorPreview() {
+  const form = $('editor-form');
+  if (!form) return;
+  const field = (key) => form.elements.namedItem(key)?.value?.trim() || '';
+  const existing = state.products.find(p => p.id === state.editId);
+  const name = [field('marca'), field('modelo')].filter(Boolean).join(' ');
+  const coverImg = ['cover','front','back','right','left'].map(side => $(`preview-${side}`).querySelector('img')?.src).find(Boolean) ||
+    (existing ? publicImageUrl(existing.foto_portada_path || existing.foto_frontal_path || existing.foto_trasera_path) : '');
+  const previewImg = $('editor-live-image');
+  previewImg.src = coverImg || '/demo/zte-blade-a56-pendiente.svg';
+  $('editor-live-brand').textContent = field('marca').toUpperCase() || 'MARCA';
+  $('editor-live-model').textContent = field('modelo') || 'Nombre del modelo';
+  $('editor-live-capacity').textContent = [field('capacidad'), field('color')].filter(Boolean).join(' · ') || 'Memoria y color';
+  $('editor-live-price').textContent = currency(field('precio_mxn'));
+  const publication = form.elements.namedItem('publicado').checked;
+  $('preview-publication-label').textContent = publication ? 'PUBLICADO' : 'BORRADOR';
+  $('preview-publication-label').classList.toggle('is-published', publication);
+  const checks = [Boolean(field('marca') && field('modelo')), Boolean(field('descripcion')), Boolean(coverImg || Object.keys(PHOTO_TYPES).some(side => $(`image-${side}`).files?.[0]))];
+  ['name','description','image'].forEach((key, index) => $('editor-check-' + key).classList.toggle('is-done', checks[index]));
+  const count = checks.filter(Boolean).length;
+  $('editor-live-progress-text').textContent = `${count} de 3`;
+  $('editor-live-progress-bar').style.width = `${Math.round(count / 3 * 100)}%`;
 }
 function openEditor(product = null) {
   const form = $('editor-form'); form.reset();
@@ -194,6 +253,7 @@ function openEditor(product = null) {
   for (const [side, column] of Object.entries(PHOTO_TYPES)) renderPhotoPreview(side, product?.[column] ? publicImageUrl(product[column]) : '');
   $('editor-dialog').showModal();
   document.body.classList.add('dialog-open');
+  updateEditorPreview();
 }
 function closeEditor() {
   if ($('editor-dialog').open) $('editor-dialog').close();
@@ -249,6 +309,7 @@ function setImportPreview(blob) {
   const node = $('import-result-preview'); node.replaceChildren();
   const image = el('img'); image.src = url; image.alt = 'Teléfono recortado sin fondo, vista previa'; node.append(image);
   renderPhotoPreview('cover', previewObjectUrls.get('cover'));
+  updateEditorPreview();
 }
 async function runOCR(file) {
   const Tesseract = await loadOcrScript();
@@ -285,6 +346,7 @@ async function processSupplierSheet(file) {
       }
       const count = Object.keys(found.especificaciones).length;
       updateImportStatus(`PNG listo · ${count} características reconocidas${found.modelo ? ` · ${found.marca} ${found.modelo}` : ''}. Revisa y guarda.`);
+      updateEditorPreview();
     } catch(error) {
       updateImportStatus(`PNG listo. El OCR no pudo completarse (${errorText(error)}). Puedes escribir la descripción manualmente.`);
     }
@@ -435,6 +497,22 @@ function init() {
   $('login-form').addEventListener('submit', handleLogin);
   $('logout-button').addEventListener('click', handleLogout);
   $('new-product').addEventListener('click', () => openEditor());
+  $('refresh-products').addEventListener('click', async () => {
+    const b = $('refresh-products'); setButtonBusy(b, true, 'Actualizando...');
+    try { await refreshDashboard(); toast('Inventario actualizado.'); }
+    catch (error) { toast('No se pudo actualizar el inventario: ' + errorText(error), 'error'); }
+    finally { setButtonBusy(b, false); }
+  });
+  $('admin-sort').addEventListener('change', event => { state.sort = event.target.value; renderProductList(); });
+  document.querySelectorAll('[data-admin-filter]').forEach(button => button.addEventListener('click', () => {
+    state.statusFilter = button.dataset.adminFilter;
+    document.querySelectorAll('[data-admin-filter]').forEach(b => {
+      const active = b === button; b.classList.toggle('is-active', active); b.setAttribute('aria-pressed', String(active));
+    });
+    renderProductList();
+  }));
+  $('editor-form').addEventListener('input', updateEditorPreview);
+  $('editor-form').addEventListener('change', updateEditorPreview);
   $('admin-search').addEventListener('input', (event) => { state.filter = event.target.value; renderProductList(); });
   document.querySelectorAll('[data-admin-tab]').forEach((button) => button.addEventListener('click', () => switchTab(button.dataset.adminTab)));
   $('editor-form').addEventListener('submit', saveProduct);
