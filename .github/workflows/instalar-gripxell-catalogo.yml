@@ -1,0 +1,59 @@
+name: Instalar GRIPXELL catalogo de telefonos
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gripxell-import/**"
+      - ".github/workflows/instalar-gripxell-catalogo.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  extraer:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v4
+      - name: Reconstruir e instalar el proyecto Astro
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import base64, hashlib, io
+          from zipfile import ZipFile
+          parts = sorted(Path("gripxell-import").glob("part-*.b64"))
+          if len(parts) != 16:
+              raise SystemExit(f"Se esperaban 16 bloques, hay {len(parts)}")
+          encoded = "".join(part.read_text("ascii").strip() for part in parts)
+          data = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(data).hexdigest() != "5edc789f3df233782973d4af6fcf7cab55da9992be7da3b350f1cb1a6a5118a7":
+              raise SystemExit("El paquete no paso la verificacion SHA-256")
+          written = 0
+          with ZipFile(io.BytesIO(data)) as archive:
+              for item in archive.infolist():
+                  path = PurePosixPath(item.filename)
+                  if not path.parts or path.parts[0] != "GRIPXELL-CATALOGO":
+                      raise SystemExit(f"Nombre de archivo inesperado: {item.filename}")
+                  rel = PurePosixPath(*path.parts[1:])
+                  if item.is_dir() or not rel.parts:
+                      continue
+                  if ".." in rel.parts or rel.name == ".env":
+                      raise SystemExit("Ruta peligrosa o archivo secreto en paquete")
+                  target = Path(*rel.parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(archive.read(item))
+                  written += 1
+          if written != 55:
+              raise SystemExit(f"Archivos incompletos: {written} de 55")
+          print(f"GRIPXELL extraido: {written} archivos en la raiz")
+          PY
+      - name: Confirmar instalacion en main
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git rm -r -f gripxell-import/
+          git commit -m "Publicar catalogo GRIPXELL Astro V2 completo (55 archivos)"
+          git push origin HEAD:main
