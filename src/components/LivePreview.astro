@@ -1,0 +1,36 @@
+---
+import type {Invite} from '../data/catalog';
+interface Props {item:Invite; context?: 'card'|'detail'}
+const {item,context='card'}=Astro.props;
+// Portada real capturada DESPUÉS de abrir el sobre.
+// Si falta, se muestra una tarjeta elegante en vez del sobre cerrado o de un pase.
+const cover=`/invitation-previews/${item.slug}.jpg`;
+const originalCover=item.cover?.startsWith('/previews-real/')?item.cover:undefined;
+const decorative=`/previews/${item.slug}.svg`;
+---
+<div class:list={['web-preview','invitation-preview',`web-preview--${context}`]}>
+  <div class="invitation-preview__fallback" style={`background-image:url("${decorative}")`}>
+    <span class="invitation-preview__brand">CAZAMI STUDIO</span>
+    <span class="invitation-preview__kind">INVITACIÓN DIGITAL</span>
+    <strong>{item.name}</strong>
+    <span class="invitation-preview__cta">Ver invitación completa</span>
+  </div>
+  <img class="web-preview__actual invitation-preview__screenshot" src={cover} data-fallback={originalCover} loading="lazy" decoding="async" alt={`Vista de la invitación abierta de ${item.name}`}/>
+  <div class="web-preview__blocker" aria-hidden="true"></div>
+</div>
+<script>
+  // Los sitios externos a menudo bloquean iframes, y un iframe empieza con el sobre cerrado.
+  // NO usar iframe: la captura debe ser posterior a la apertura o usar fallback sin falsificarla.
+  document.querySelectorAll<HTMLElement>('.invitation-preview').forEach(host=>{
+    const image=host.querySelector<HTMLImageElement>('.invitation-preview__screenshot');
+    if(!image)return;
+    const failed=()=>{
+      if(image.dataset.fallback&&image.dataset.fallbackUsed!=='1'){
+        image.dataset.fallbackUsed='1';
+        image.src=image.dataset.fallback;
+      }else image.hidden=true;
+    };
+    image.addEventListener('error',failed);
+    if(image.complete&&image.naturalWidth===0)failed();
+  });
+</script>
