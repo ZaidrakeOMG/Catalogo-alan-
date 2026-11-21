@@ -61,7 +61,7 @@ function cardFor(product) {
 function renderProducts(){
   $('product-count').textContent=state.products.length+' '+(state.products.length===1?'modelo':'modelos')+' en catálogo';
   const root=$('product-grid');root.replaceChildren();const list=visibleProducts();
-  if(!list.length){const empty=el('div','empty-state');empty.append(el('div','empty-state__icon','⌕'),el('strong','',state.products.length?'No encontramos ese modelo':'Próximamente habrá modelos'),el('p','',state.products.length?'Prueba con otra marca o nombre.':'Los modelos publicados por el administrador aparecerán aquí.'));root.append(empty);return;}
+  if(!list.length){const empty=el('div','empty-state');empty.append(el('div','empty-state__icon','⌕'),el('strong','',state.products.length?'No encontramos ese modelo':'Próximamente habrá modelos'),el('p','',state.products.length?'Prueba con otra marca o nombre.':'No hay modelos publicados. Ejecuta el SQL 06_REPARAR_CATALOGO_SIN_MODELOS.sql desde Supabase para activar los siete equipos.'));root.append(empty);return;}
   for(const product of list)root.append(cardFor(product));
 }
 function specifications(product){
@@ -159,8 +159,10 @@ async function loadCatalog(){
     client.from(TABLES.products).select('*').eq('publicado',true).order('orden',{ascending:true}),
     client.from(TABLES.settings).select('*').eq('id',1).maybeSingle()
   ]);
-  if(p.error||s.error)throw(p.error||s.error);
-  state.products=p.data||[];state.settings=s.data||{};
+  // Si la configuración de WhatsApp falla, el catálogo de productos debe seguir visible.
+  if(p.error)throw p.error;
+  if(s.error)console.warn('GRIPXELL: no se pudo cargar la configuración de la tienda:',s.error);
+  state.products=p.data||[];state.settings=s.error?{}:(s.data||{});
   renderFilters();renderProducts();if(state.settings.logo_path)applyCustomLogo(state.settings.logo_path);
   const wanted=new URL(location.href).searchParams.get('modelo');if(wanted){const found=state.products.find(x=>x.slug===wanted);if(found)openProduct(found);}
  }catch(error){console.error('GRIPXELL',error);$('product-count').textContent='Sin conexión';const root=$('product-grid');root.replaceChildren();const box=el('div','empty-state');box.append(el('strong','', 'No se pudo cargar el catálogo'),el('p','', 'Verifica que ejecutaste los SQL 01 y 04 y configuraste las claves públicas de Supabase.'));root.append(box);}
