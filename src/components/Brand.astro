@@ -1,0 +1,18 @@
+---
+const { small = false, href = '/' } = Astro.props;
+---
+<a href={href} class:list={['brand', { 'brand--small': small }]} aria-label="GRIPXELL, ir al inicio">
+  <span class="brand__mark" aria-hidden="true">
+    <span class="brand__mark-ring"></span>
+    <svg viewBox="0 0 42 42" fill="none">
+      <rect x="7" y="7" width="19" height="29" rx="3.5" stroke="currentColor" stroke-width="2.1" />
+      <path d="M11 12h11M12 30h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      <rect x="24" y="4" width="12" height="29" rx="3" stroke="currentColor" stroke-width="2.1" />
+      <circle cx="30" cy="10" r="1.6" fill="currentColor" />
+    </svg>
+  </span>
+  <span class="brand__copy">
+    <strong>GRIPXELL<span class="brand__dot">.</span></strong>
+    <small>SMART PHONES Y MÁS</small>
+  </span>
+</a>
