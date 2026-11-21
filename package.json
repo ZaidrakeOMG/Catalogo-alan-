@@ -1,13 +1,14 @@
 {
   "name": "gripxell-catalogo-astro",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "astro dev --host 0.0.0.0",
     "build": "astro build",
     "preview": "astro preview --host 0.0.0.0",
-    "check:js": "node --check src/scripts/catalog.js && node --check src/scripts/admin.js && node --check src/lib/supabase.js"
+    "check:js": "node --check src/scripts/catalog.js && node --check src/scripts/admin.js && node --check src/lib/supabase.js && node --check src/lib/ficha-automatica.js && node --check src/lib/recorte-png.js",
+    "test": "node --test tests/ficha.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.0",

@@ -2,6 +2,29 @@
 
 Proyecto web con **Astro (estático) + Supabase (Auth, PostgreSQL, Storage)**, diseñado para móvil, tablet y escritorio. Incluye catálogo por modelo, fichas técnicas, fotografías de frente/reverso, vista con arrastre y animación, búsqueda y filtros, y compra por WhatsApp.
 
+
+## NUEVO — V3: panel Admin, importación de fichas, PNG y enlaces WhatsApp
+
+**Panel:** abre `https://TU-DOMINIO.vercel.app/admin/`. Acceso con usuario y contraseña de **Supabase Authentication**, y su User UID en `gripxell_administradores`. No existe contraseña fija en el código.
+
+- **Subir una ficha del distribuidor:** Administrador → Inventario → Agregar celular → **Seleccionar ficha de proveedor**. Se crea la portada PNG sin fondo mediante recorte automático del sector izquierdo. La plantilla de proveedor debe ser blanca y con el teléfono a la izquierda. Si el recorte no queda bien, ajusta el control de ancho y presiona **Reprocesar imagen**, o sube una PNG manual.
+- **OCR en el navegador:** Tesseract.js 6.0.1 se carga desde CDN únicamente cuando importas una ficha; intenta leer marca, modelo, memoria y características y llena los campos. Debes revisar los datos antes de publicar; no se garantiza lectura correcta ni se corrigen valores automáticamente. Si no hay conexión para cargar OCR, el PNG puede generarse, y puedes capturar la descripción a mano.
+- **Fotos independientes:** al subir imágenes a Portada / Frente / Tapa trasera / Costados, el administrador intenta borrar el blanco exterior y sube un PNG. Si la foto tiene fondo complejo, agrega una PNG con transparencia manualmente. Las fichas que contienen frente y reverso juntos NO se convierten en un modelo 3D geométrico real: el visor crea una **inclinación tipo 3D**; con varias fotos reales puedes cambiar la perspectiva y usar giro automático.
+- **WhatsApp de compra:** Configuración → número internacional, ejemplo `52` + 10 dígitos. Cada modelo manda un mensaje con enlace `?modelo=slug` para que el vendedor abra exactamente ese celular. WhatsApp abre con el mensaje preparado; el comprador debe tocar Enviar.
+- **Modelos iniciales:** siete teléfonos extraídos de las fichas suministradas, en `/public/demo/*.png`. Sus características se transcribieron de las fichas; no se verificaron contra fabricantes. El usuario puede corregirlas en Admin.
+
+### Base de datos: actualización necesaria
+
+Si nunca ejecutaste SQL, utiliza `supabase/00_INSTALAR_GRIPXELL_COMPLETO.sql` (ahora incluye V3). Si ya instalaste la versión anterior, **ejecuta únicamente** `supabase/05_actualizar_fichas_png.sql` para convertir las rutas de imágenes demo a PNG sin pisar imágenes ni datos que hayas cambiado desde Admin. El catálogo incluye compatibilidad con rutas antiguas mientras realizas ese paso.
+
+### Variables de Vercel
+
+`PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. La clave secreta `sb_secret_` no se usa en esta aplicación estática y nunca debe publicarse. Configura `Framework: Astro`, `Root Directory: ./`, `Build: npm run build`, `Output: dist`.
+
+### Pruebas
+
+`npm run check:js && npm test`; se validaron la sintaxis de los archivos JavaScript y la lectura de ejemplos de fichas. La compilación Astro en red y el guardado real en Supabase deben probarse con el deploy de Vercel y el usuario administrador existente.
+
 ## Configuración rápida
 
 **1. Base de datos**

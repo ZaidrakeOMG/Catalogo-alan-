@@ -24,7 +24,12 @@ export function supabase() {
 export function publicImageUrl(path) {
   if (!path) return '';
   // Assets de muestra incluidos en el propio sitio, nunca son rutas de Storage.
-  if (String(path).startsWith('/demo/')) return String(path);
+  if (String(path).startsWith('/demo/')) {
+    const demo=String(path);
+    const slugs=['motorola-g06','naomicase-romy-v2','naomicase-sena','samsung-a08','xiaomi-redmi-a7-pro','zte-blade-a56','zte-blade-v70-max'];
+    const hit=slugs.find(slug=>demo===`/demo/${slug}.webp` || (slug==='motorola-g06' && demo==='/demo/motorola-g06-conjunto.webp'));
+    return hit ? `/demo/${hit}.png` : demo;
+  }
   return supabase().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 

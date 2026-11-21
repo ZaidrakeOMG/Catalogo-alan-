@@ -1,7 +1,9 @@
 import { supabase, TABLES, BUCKET, publicImageUrl, currency, slugify, cleanPhone, toast } from '../lib/supabase.js';
+import { recortarTelefonoPNG, isHorizontalSheet } from '../lib/recorte-png.js';
+import { parseFichaOCR } from '../lib/ficha-automatica.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { products: [], settings: null, user: null, editId: null, filter: '' };
+const state = { products: [], settings: null, user: null, editId: null, filter: '', importedCover: null, analyzing: false };
 const previewObjectUrls = new Map();
 const MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'];
 const PHOTO_TYPES = { cover:'foto_portada_path', front:'foto_frontal_path', right:'foto_lateral_derecha_path', back:'foto_trasera_path', left:'foto_lateral_izquierda_path' };
@@ -175,7 +177,9 @@ async function handlePreview(side) {
 function openEditor(product = null) {
   const form = $('editor-form'); form.reset();
   clearObjectPreviews(); hideError('editor-error');
-  state.editId = product?.id ?? null;
+  state.editId = product?.id ?? null; state.importedCover = null;
+  $('provider-sheet').value = ''; $('import-ocr-details').hidden = true; $('import-ocr-text').textContent = '';
+  $('import-result-preview').textContent = 'Tu teléfono sin fondo aparecerá aquí.'; updateImportStatus('El recorte y el OCR se realizan al elegir la imagen.');
   $('editor-title').textContent = product ? `Editar ${product.modelo}` : 'Agregar celular';
   if (product) {
     for (const key of ['marca', 'modelo', 'color', 'capacidad', 'orden', 'descripcion']) {
@@ -211,49 +215,98 @@ function parseDescription(description) {
   return result;
 }
 
-async function getImageBlob(file, maxDimension = 1560, autoCropSheet = false) {
-  if (!MIME_TYPES.includes(file.type)) throw new Error('Solo se permiten fotografías JPG, PNG, WebP o AVIF.');
-  if (file.size > 24 * 1024 * 1024) throw new Error('La foto original excede 24 MB. Reduce su tamaño antes de subirla.');
-  let bitmap;
-  let objectUrl;
+async function getImageBlob(file, maxDimension = 1560, autoCropSheet = false, isLogo = false) {
+  if (file.type === 'image/png' && file.name.startsWith('gripxell-recortado-')) return file;
+  const isSheet = autoCropSheet && await isHorizontalSheet(file);
+  return recortarTelefonoPNG(file, {
+    isSheet, cropPercent: Number($('crop-sheet-percent').value) || 62,
+    maxDimension, removeWhite: !isLogo,
+  });
+}
+
+let ocrScriptPromise;
+function loadOcrScript() {
+  if (window.Tesseract?.createWorker) return Promise.resolve(window.Tesseract);
+  if (ocrScriptPromise) return ocrScriptPromise;
+  ocrScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    // Se descarga solo si el admin importa una ficha; no afecta a los visitantes.
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';
+    script.async = true;
+    script.onload = () => window.Tesseract?.createWorker ? resolve(window.Tesseract) : reject(new Error('No se pudo iniciar OCR.'));
+    script.onerror = () => reject(new Error('No se pudo descargar el motor OCR. Revisa tu conexión.'));
+    document.head.append(script);
+  }).catch(error => { ocrScriptPromise = null; throw error; });
+  return ocrScriptPromise;
+}
+function updateImportStatus(message) { $('import-status').textContent = message; }
+function setImportPreview(blob) {
+  if (previewObjectUrls.has('import')) URL.revokeObjectURL(previewObjectUrls.get('import'));
+  if (previewObjectUrls.has('cover')) URL.revokeObjectURL(previewObjectUrls.get('cover'));
+  const url = URL.createObjectURL(blob);
+  previewObjectUrls.set('import', url);
+  previewObjectUrls.set('cover', URL.createObjectURL(blob));
+  const node = $('import-result-preview'); node.replaceChildren();
+  const image = el('img'); image.src = url; image.alt = 'Teléfono recortado sin fondo, vista previa'; node.append(image);
+  renderPhotoPreview('cover', previewObjectUrls.get('cover'));
+}
+async function runOCR(file) {
+  const Tesseract = await loadOcrScript();
+  const worker = await Tesseract.createWorker('spa+eng', 1, {
+    logger: progress => {
+      if (progress.status === 'recognizing text') updateImportStatus(`Leyendo características... ${Math.round((progress.progress || 0)*100)} %`);
+    },
+  });
+  try { const response = await worker.recognize(file); return response.data.text || ''; }
+  finally { await worker.terminate(); }
+}
+async function processSupplierSheet(file) {
+  if (!file || state.analyzing) return;
+  state.analyzing = true;
+  $('import-retry').disabled = true;
+  hideError('editor-error');
   try {
-    if (typeof createImageBitmap === 'function') {
-      try { bitmap = await createImageBitmap(file); } catch { /* Safari puede decodificar HEIC con Image. */ }
+    updateImportStatus('Recortando el teléfono y creando PNG transparente...');
+    const cropped = await recortarTelefonoPNG(file, {isSheet:await isHorizontalSheet(file),cropPercent:Number($('crop-sheet-percent').value),maxDimension:1560});
+    state.importedCover = new File([cropped], `gripxell-recortado-${Date.now()}.png`, {type:'image/png'});
+    setImportPreview(state.importedCover);
+    updateImportStatus('PNG creado. Iniciando reconocimiento OCR de la ficha...');
+    try {
+      const rawText = await runOCR(file);
+      $('import-ocr-text').textContent = rawText || 'El OCR no devolvió texto legible.';
+      $('import-ocr-details').hidden = false;
+      const found = parseFichaOCR(rawText);
+      const form = $('editor-form');
+      const mayReplace = !state.editId || $('import-overwrite').checked;
+      for (const field of ['marca','modelo','capacidad','descripcion']) {
+        if (!found[field]) continue;
+        const input = form.elements.namedItem(field);
+        if (!input.value.trim() || mayReplace) input.value = found[field];
+      }
+      const count = Object.keys(found.especificaciones).length;
+      updateImportStatus(`PNG listo · ${count} características reconocidas${found.modelo ? ` · ${found.marca} ${found.modelo}` : ''}. Revisa y guarda.`);
+    } catch(error) {
+      updateImportStatus(`PNG listo. El OCR no pudo completarse (${errorText(error)}). Puedes escribir la descripción manualmente.`);
     }
-    if (!bitmap) {
-      objectUrl = URL.createObjectURL(file);
-      bitmap = new Image(); bitmap.src = objectUrl; await bitmap.decode();
-    }
-    const naturalWidth = bitmap.width;
-    const naturalHeight = bitmap.height;
-    // Recortar una diapositiva horizontal de proveedor: teléfono a la izquierda,
-    // título arriba y publicidad al pie. Nunca se modifica el archivo de origen.
-    const sheet = autoCropSheet && naturalWidth / naturalHeight > 1.46;
-    const sourceX = sheet ? Math.round(naturalWidth * .015) : 0;
-    const sourceY = sheet ? Math.round(naturalHeight * .14) : 0;
-    const sourceWidth = sheet ? Math.round(naturalWidth * .51) : naturalWidth;
-    const sourceHeight = sheet ? Math.round(naturalHeight * .76) : naturalHeight;
-    const factor = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(sourceWidth * factor));
-    canvas.height = Math.max(1, Math.round(sourceHeight * factor));
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Tu navegador no pudo procesar la imagen.');
-    context.imageSmoothingQuality = 'high';
-    context.drawImage(bitmap, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', .87));
-    const result = blob?.type === 'image/webp' && blob.size <= 8 * 1024 * 1024 ? blob : file;
-    if (['image/heic', 'image/heif'].includes(result.type)) throw new Error('No se pudo convertir esta foto HEIC/HEIF. Exporta la imagen como JPG desde tu iPhone e inténtalo de nuevo.');
-    if (result.size > 8 * 1024 * 1024) throw new Error('La fotografía excede el límite de 8 MB incluso al comprimirla.');
-    return result;
-  } finally {
-    if (typeof bitmap?.close === 'function') bitmap.close();
-    if (objectUrl) URL.revokeObjectURL(objectUrl);
-  }
+  } catch(error) {
+    showError('editor-error', errorText(error));
+    updateImportStatus('No se pudo procesar la ficha. Usa otra foto o carga una PNG manualmente.');
+  } finally { state.analyzing = false; $('import-retry').disabled = false; }
+}
+async function handleSupplierUpload(event) {
+  const file = event.target.files?.[0];
+  if(file) await processSupplierSheet(file);
+}
+async function handleCoverSelected() {
+  const file = $('image-cover').files?.[0];
+  state.importedCover = null;
+  if (file && $('crop-provider-sheet').checked && await isHorizontalSheet(file)) {
+    await processSupplierSheet(file);
+  } else await handlePreview('cover');
 }
 
 async function uploadImage(file, directory, label, autoCropSheet = false) {
-  const blob = await getImageBlob(file, directory === 'logos' ? 900 : 1560, autoCropSheet);
+  const blob = await getImageBlob(file, directory === 'logos' ? 900 : 1560, autoCropSheet, directory === 'logos');
   const extension = blob.type === 'image/webp' ? 'webp' : (blob.type === 'image/png' ? 'png' : blob.type === 'image/avif' ? 'avif' : 'jpg');
   const name = `${label}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${extension}`;
   const path = `${directory}/${name}`;
@@ -267,12 +320,14 @@ async function uploadImage(file, directory, label, autoCropSheet = false) {
 async function saveProduct(event) {
   event.preventDefault(); hideError('editor-error');
   const button = $('editor-save');
+  if (state.analyzing) { showError('editor-error', 'Espera a que termine el procesamiento de la ficha.'); return; }
   const form = $('editor-form');
   const value = (name) => form.elements.namedItem(name).value.trim();
   const checked = (name) => form.elements.namedItem(name).checked;
   const existing = state.products.find((p) => p.id === state.editId) || null;
   const id = existing?.id ?? crypto.randomUUID();
   const files = Object.fromEntries(Object.keys(PHOTO_TYPES).map(side => [side, $(`image-${side}`).files?.[0] || null]));
+  if (state.importedCover) files.cover = state.importedCover;
   const paths = Object.fromEntries(Object.entries(PHOTO_TYPES).map(([side,column]) => [side, existing?.[column] || null]));
   const uploaded = [];
   let saved = false;
@@ -387,7 +442,10 @@ function init() {
   $('editor-cancel').addEventListener('click', closeEditor);
   $('editor-dialog').addEventListener('click', (event) => { if (event.target === $('editor-dialog')) closeEditor(); });
   $('editor-dialog').addEventListener('close', () => { clearObjectPreviews(); document.body.classList.remove('dialog-open'); });
-  for (const side of Object.keys(PHOTO_TYPES)) $(`image-${side}`).addEventListener('change', () => handlePreview(side));
+  for (const side of Object.keys(PHOTO_TYPES)) $(`image-${side}`).addEventListener('change', () => side === 'cover' ? void handleCoverSelected() : void handlePreview(side));
+  $('provider-sheet').addEventListener('change', (event) => { void handleSupplierUpload(event); });
+  $('import-retry').addEventListener('click', () => { const file = $('provider-sheet').files?.[0] || $('image-cover').files?.[0]; if(file) void processSupplierSheet(file); else toast('Primero selecciona una ficha de proveedor.', 'error'); });
+  $('crop-sheet-percent').addEventListener('input', (e) => { $('crop-sheet-value').textContent = `${e.target.value} % del ancho de la ficha`; });
   $('crop-provider-sheet').addEventListener('change', () => { if ($('image-cover').files?.[0]) void handlePreview('cover'); });
   $('settings-form').addEventListener('submit', saveSettings);
   void ensureSession();

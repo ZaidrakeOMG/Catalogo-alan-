@@ -12,7 +12,9 @@ function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.
 function photoUrl(product) {return publicImageUrl(product.foto_portada_path || product.foto_frontal_path || product.foto_trasera_path || '');}
 function image(img, src, fallback) { img.src = src || fallback; img.addEventListener('error', () => { if (img.src !== new URL(fallback, location.href).href) img.src = fallback; }, { once: true }); }
 function framesFor(product) {
-  const frames = frameNames.filter(([key]) => product[key]).map(([key,label]) => ({ label, src:publicImageUrl(product[key]) }));
+  // Los recortes demostrativos antiguos no son vistas independientes y daban un falso giro.
+  // Solo usamos imágenes de ángulos separadas subidas por el administrador.
+  const frames = frameNames.filter(([key]) => product[key] && !String(product[key]).startsWith('/demo/')).map(([key,label]) => ({ label, src:publicImageUrl(product[key]) }));
   if (frames.length) return frames;
   const cover = photoUrl(product);
   return cover ? [{label:'Fotografía del modelo', src:cover}] : [];
@@ -72,7 +74,9 @@ function specifications(product){
 function whatsappLink(product){
   const number=cleanPhone(state.settings.whatsapp_numero);if(!/^\d{8,15}$/.test(number))return '';
   const name=[product.marca,product.modelo,product.capacidad].filter(Boolean).join(' ');
-  return `https://wa.me/${number}?text=${encodeURIComponent(`Hola, vi el ${name} en el catálogo GRIPXELL y quiero confirmar disponibilidad y precio. ¿Me pueden ayudar?`)}`;
+  const link=new URL(window.location.origin + window.location.pathname);link.searchParams.set('modelo', product.slug);
+  const mensaje=`Hola, me interesa comprar el ${name} de GRIPXELL.\n\nAquí está el modelo que elegí: ${link.href}\n\n¿Me confirmas disponibilidad y precio?`;
+  return `https://wa.me/${number}?text=${encodeURIComponent(mensaje)}`;
 }
 function clearTimer(){if(viewer.auto){clearInterval(viewer.auto);viewer.auto=null;}$('turntable-card').classList.remove('is-sway');$('turntable-rig').classList.remove('is-spinning');$('detail-auto').textContent=viewer.frames.length===1?'Movimiento automático':'Giro automático';}
 function drawFrame({animate=true}={}) {
@@ -91,7 +95,7 @@ function drawFrame({animate=true}={}) {
   if(viewer.mode!=='rig')$('detail-angle-label').textContent=`${frame.label.toUpperCase()} · ${viewer.index+1} / ${viewer.frames.length}`;
   $('detail-prev').disabled=viewer.frames.length<2;$('detail-next').disabled=viewer.frames.length<2;
   $('detail-auto').disabled=viewer.frames.length===0;
-  $('viewer-help').textContent=viewer.frames.length===1?'Una imagen disponible. Inclina el celular; agrega fotos de otros ángulos desde Admin.':'Desliza o utiliza las flechas para cambiar la vista';
+  $('viewer-help').textContent=viewer.frames.length===1?'Desliza el teléfono para inclinarlo en 3D. Añade caras reales desde Admin para girarlo.':'Desliza o utiliza las flechas para cambiar la vista';
   const thumbs=$('detail-thumbs');thumbs.replaceChildren();
   viewer.frames.forEach((part,i)=>{
     const b=el('button','viewer-thumb'+(i===viewer.index?' is-current':''));b.type='button';b.setAttribute('aria-label',`Ver ${part.label}`);
@@ -104,7 +108,7 @@ function openProduct(product){
   $('detail-brand').textContent=product.marca.toUpperCase();$('dialog-title').textContent=product.modelo;
   $('detail-meta').textContent=[product.capacidad,product.color].filter(Boolean).join(' · ');
   viewer.frames=framesFor(product);viewer.index=0;viewer.pointerX=null;viewer.accumulated=0;viewer.angle=0;
-  viewer.mode=(product.foto_frontal_path && product.foto_trasera_path && !product.foto_lateral_derecha_path && !product.foto_lateral_izquierda_path)?'rig':viewer.frames.length>1?'frames':'single';
+  viewer.mode=(product.foto_frontal_path && product.foto_trasera_path && !String(product.foto_frontal_path).startsWith('/demo/') && !String(product.foto_trasera_path).startsWith('/demo/') && !product.foto_lateral_derecha_path && !product.foto_lateral_izquierda_path)?'rig':viewer.frames.length>1?'frames':'single';
   $('detail-auto').textContent=viewer.frames.length===1?'Movimiento automático':'Giro automático';
   $('turntable-rig').hidden=viewer.mode!=='rig';$('turntable-card').hidden=viewer.mode==='rig';
   if(viewer.mode==='rig'){$('turntable-front').src=publicImageUrl(product.foto_frontal_path);$('turntable-back').src=publicImageUrl(product.foto_trasera_path);}
@@ -138,7 +142,7 @@ function initViewer(){
  stage.addEventListener('pointermove',e=>{
    if(viewer.pointerX===null)return;const dx=e.clientX-viewer.pointerX;const prevClientX=viewer.lastMove;viewer.lastMove=e.clientX;
    if(viewer.mode==='rig'){viewer.angle+= (e.clientX-prevClientX)*.75;rig.style.transform=`translateX(-50%) rotateY(${viewer.angle}deg) rotateX(4deg)`;const back=((viewer.angle%360+360)%360)>90 && ((viewer.angle%360+360)%360)<270;viewer.index=back?1:0;$('detail-angle-label').textContent=back?'TAPA TRASERA · GIRO 3D':'PANTALLA · GIRO 3D';viewer.lastMove=e.clientX;return;}
-   const tilt=Math.max(-24,Math.min(24,dx*.28));card.style.transform=`rotateY(${tilt}deg) rotateX(2deg)`;
+   const tilt=Math.max(-22,Math.min(22,dx*.28));const angleX=Math.max(-8,Math.min(8,(e.clientY-stage.getBoundingClientRect().top-stage.clientHeight/2)*-.028));card.style.transform=`perspective(1100px) rotateY(${tilt}deg) rotateX(${angleX}deg) scale(1.025)`;
    if(viewer.frames.length>1){ const step=dx-viewer.accumulated;if(Math.abs(step)>73){setFrame(viewer.index+(step<0?1:-1),{animate:false});viewer.accumulated=dx;}}
  });
  function release(e){if(viewer.pointerX===null)return;const dx=(e?.clientX??viewer.lastMove)-viewer.pointerX;if(viewer.mode!=='rig' && viewer.frames.length>1 && Math.abs(dx)>35 && Math.abs(dx-viewer.accumulated)>28)setFrame(viewer.index+(dx<0?1:-1));viewer.pointerX=null;viewer.accumulated=0;if(viewer.mode!=='rig')card.style.transform='rotateY(0deg) rotateX(0deg)';}
