@@ -5,6 +5,30 @@
 -- Se puede ejecutar varias veces sin duplicar productos.
 BEGIN;
 
+-- CORRECCION V3: la tabla V1 no tenia columna foto_portada_path.
+-- Este paso actualiza la estructura antes de registrar/publicar modelos.
+ALTER TABLE public.gripxell_celulares
+  ADD COLUMN IF NOT EXISTS foto_portada_path text,
+  ADD COLUMN IF NOT EXISTS foto_lateral_derecha_path text,
+  ADD COLUMN IF NOT EXISTS foto_lateral_izquierda_path text;
+
+-- La version vieja exigia frente Y reverso para publicar.
+-- La version nueva permite usar una sola portada PNG del producto.
+ALTER TABLE public.gripxell_celulares
+  DROP CONSTRAINT IF EXISTS gripxell_publicacion_completa;
+
+ALTER TABLE public.gripxell_celulares
+  ADD CONSTRAINT gripxell_publicacion_completa CHECK (
+    NOT publicado OR (
+      length(btrim(descripcion)) > 0
+      AND (
+        nullif(btrim(foto_portada_path), '') IS NOT NULL
+        OR nullif(btrim(foto_frontal_path), '') IS NOT NULL
+        OR nullif(btrim(foto_trasera_path), '') IS NOT NULL
+      )
+    )
+  );
+
 INSERT INTO public.gripxell_celulares
 (slug, marca, modelo, color, capacidad, descripcion, especificaciones, foto_portada_path, disponible, publicado, orden)
 VALUES
