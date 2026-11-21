@@ -118,3 +118,57 @@ body{background:var(--paper)}
 @media(hover:hover){.product-card--v2:hover .product-card__visual img{transform:perspective(850px) rotateY(-10deg) rotateX(3deg) scale(1.045);filter:drop-shadow(11px 18px 11px #1535302c)}}
 @media(max-width:680px){.import-card{padding:15px;border-radius:17px;margin-bottom:22px}.import-card__layout{grid-template-columns:1fr}.import-card__upload{min-height:127px}.import-card__process{min-height:160px}.import-card__cut-preview{height:130px}.import-card__cut-preview img{max-height:125px}.import-card__controls{grid-template-columns:1fr}.import-card__controls .check-tile{grid-column:auto}.site-footer__inner{flex-wrap:wrap;gap:11px}}
 @media(prefers-reduced-motion:reduce){.import-card__upload,.product-card--v2 .product-card__visual img{transition:none!important}}
+
+/* V5: visor táctil para Safari iOS y Chrome Android, sin bloquear el scroll vertical. */
+.turntable{
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:pan-y pinch-zoom;
+  overscroll-behavior-x:contain;
+  cursor:grab;
+}
+.turntable img{-webkit-user-drag:none;user-drag:none;pointer-events:none}
+.turntable__light,.turntable__floor,.turntable__shine{pointer-events:none}
+.turntable.is-dragging{cursor:grabbing}
+.turntable.is-dragging .turntable__card,
+.turntable.is-dragging .turntable__rig{transition:none!important}
+/* El giro de dos caras se dirige por requestAnimationFrame y no por una animación CSS
+   que reinicie la orientación al tocar la pantalla. */
+.turntable__rig.is-spinning{animation:none!important;transition:none!important}
+.viewer-flip,.viewer-thumb{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.viewer-actions--v2 .viewer-flip{min-height:44px}
+.viewer-actions--v2 .viewer-flip--primary{min-height:44px;min-width:144px}
+.viewer-help{max-width:360px;min-height:28px}
+@media(max-width:620px){
+  .product-dialog--v2{
+    position:fixed;inset:auto 0 0;
+    margin:0;width:100%;max-width:100%;
+    max-height:94vh;max-height:94dvh;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:contain;
+    border-radius:23px 23px 0 0;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .product-dialog--v2 .product-dialog__visual{
+    padding:54px 12px 18px;
+    min-height:0;
+  }
+  .turntable{
+    width:min(100%,360px);height:clamp(258px,70vw,335px);
+    min-height:258px;perspective:850px;
+  }
+  .product-dialog--v2 .dialog-product-badge{top:17px}
+  .product-dialog--v2 .product-dialog__info{padding:22px 20px 28px}
+  .viewer-actions--v2{gap:10px;margin-top:12px}
+  .viewer-actions--v2 .viewer-flip:not(.viewer-flip--primary){min-width:50px}
+  .viewer-help{font-size:11px;line-height:1.5;max-width:290px;margin:10px auto}
+  .viewer-thumb{height:50px;width:54px}
+}
+@media(max-width:375px){
+  .turntable{height:260px;min-height:260px}
+  .viewer-actions--v2{gap:6px}
+  .product-dialog--v2 .product-dialog__info{padding-inline:17px}
+}
+@media(prefers-reduced-motion:reduce){
+  .turntable__card,.turntable__rig{transition:none!important}
+}

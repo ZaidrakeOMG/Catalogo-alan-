@@ -1,4 +1,5 @@
 import { supabase, TABLES, publicImageUrl, currency, cleanPhone, toast } from '../lib/supabase.js';
+import { gestureAxis, tiltFromDrag, rotationFromDrag, swipeDirection, isBackFacing } from '../lib/visor-touch.js';
 
 const $ = (id) => document.getElementById(id);
 const collator = new Intl.Collator('es-MX', { sensitivity: 'base' });
@@ -7,7 +8,7 @@ const frameNames = [
   ['foto_frontal_path', 'Frente'], ['foto_lateral_derecha_path','Lado derecho'],
   ['foto_trasera_path','Tapa trasera'], ['foto_lateral_izquierda_path','Lado izquierdo']
 ];
-const viewer = { frames: [], index: 0, pointerX: null, accumulated: 0, auto: null, lastMove: 0, angle: 0, mode: 'single' };
+const viewer = { frames: [], index: 0, pointerId: null, pointerType: 'mouse', axis: 'pending', startX: 0, startY: 0, lastX: 0, lastY: 0, baseAngle: 0, baseTiltX: 0, baseTiltY: 0, tiltX: 0, tiltY: 0, auto: null, rafId: null, rafLast: 0, angle: 0, mode: 'single' };
 function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
 function photoUrl(product) {return publicImageUrl(product.foto_portada_path || product.foto_frontal_path || product.foto_trasera_path || '');}
 function image(img, src, fallback) { img.src = src || fallback; img.addEventListener('error', () => { if (img.src !== new URL(fallback, location.href).href) img.src = fallback; }, { once: true }); }
@@ -78,24 +79,36 @@ function whatsappLink(product){
   const mensaje=`Hola, me interesa comprar el ${name} de GRIPXELL.\n\nAquí está el modelo que elegí: ${link.href}\n\n¿Me confirmas disponibilidad y precio?`;
   return `https://wa.me/${number}?text=${encodeURIComponent(mensaje)}`;
 }
-function clearTimer(){if(viewer.auto){clearInterval(viewer.auto);viewer.auto=null;}$('turntable-card').classList.remove('is-sway');$('turntable-rig').classList.remove('is-spinning');$('detail-auto').textContent=viewer.frames.length===1?'Movimiento automático':'Giro automático';}
+function clearTimer(){
+  if(viewer.auto!==null){clearInterval(viewer.auto);viewer.auto=null;}
+  if(viewer.rafId!==null){cancelAnimationFrame(viewer.rafId);viewer.rafId=null;viewer.rafLast=0;}
+  $('turntable-card').classList.remove('is-sway');
+  $('turntable-rig').classList.remove('is-spinning');
+  $('detail-auto').textContent=viewer.frames.length===1?'Movimiento automático':'Giro automático';
+}
+function paintRig(){
+  $('turntable-rig').style.transform=`translateX(-50%) rotateY(${viewer.angle}deg) rotateX(4deg)`;
+  viewer.index=isBackFacing(viewer.angle)?1:0;
+  $('detail-angle-label').textContent=viewer.index===1?'TAPA TRASERA · GIRO 3D':'PANTALLA · GIRO 3D';
+  [...$('detail-thumbs').children].forEach((thumb,index)=>thumb.classList.toggle('is-current',index===viewer.index));
+}
+function paintTilt(){
+  $('turntable-card').style.transform=`perspective(950px) rotateY(${viewer.tiltY}deg) rotateX(${viewer.tiltX}deg)`;
+}
 function drawFrame({animate=true}={}) {
   const frame=viewer.frames[viewer.index]; if(!frame)return;
   const img=$('turntable-image'),card=$('turntable-card');
-  if (viewer.mode === 'rig') {
-    $('turntable-rig').style.transform=`translateX(-50%) rotateY(${viewer.angle}deg) rotateX(4deg)`;
-    $('detail-angle-label').textContent=`${frame.label.toUpperCase()} · GIRO 3D`;
-  }
+  if (viewer.mode === 'rig') paintRig();
   if(viewer.mode!=='rig' && img.getAttribute('src')!==frame.src){
     img.classList.remove('turntable__image--in');
     img.src=frame.src; img.alt=`${frame.label} de ${state.current.marca} ${state.current.modelo}`;
     requestAnimationFrame(()=>img.classList.add('turntable__image--in'));
   }
-  if(animate && viewer.mode!=='rig'){card.animate([{transform:'rotateY(-12deg) scale(.97)'},{transform:'rotateY(4deg) scale(1)'}],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});}
+  if(animate && viewer.mode!=='rig' && viewer.pointerId===null && !matchMedia('(prefers-reduced-motion: reduce)').matches){card.animate([{opacity:.78},{opacity:1}],{duration:220,easing:'ease-out'});}
   if(viewer.mode!=='rig')$('detail-angle-label').textContent=`${frame.label.toUpperCase()} · ${viewer.index+1} / ${viewer.frames.length}`;
   $('detail-prev').disabled=viewer.frames.length<2;$('detail-next').disabled=viewer.frames.length<2;
   $('detail-auto').disabled=viewer.frames.length===0;
-  $('viewer-help').textContent=viewer.frames.length===1?'Desliza el teléfono para inclinarlo en 3D. Añade caras reales desde Admin para girarlo.':'Desliza o utiliza las flechas para cambiar la vista';
+  $('viewer-help').textContent=viewer.mode==='rig'?'Desliza a izquierda o derecha para girarlo y ver la parte trasera.':viewer.frames.length===1?'Mueve el dedo hacia los lados para inclinar la foto en 3D.':'Desliza a izquierda o derecha para cambiar de fotografía.';
   const thumbs=$('detail-thumbs');thumbs.replaceChildren();
   viewer.frames.forEach((part,i)=>{
     const b=el('button','viewer-thumb'+(i===viewer.index?' is-current':''));b.type='button';b.setAttribute('aria-label',`Ver ${part.label}`);
@@ -107,12 +120,12 @@ function openProduct(product){
   clearTimer();state.current=product;
   $('detail-brand').textContent=product.marca.toUpperCase();$('dialog-title').textContent=product.modelo;
   $('detail-meta').textContent=[product.capacidad,product.color].filter(Boolean).join(' · ');
-  viewer.frames=framesFor(product);viewer.index=0;viewer.pointerX=null;viewer.accumulated=0;viewer.angle=0;
+  viewer.frames=framesFor(product);viewer.index=0;viewer.pointerId=null;viewer.axis='pending';viewer.angle=0;viewer.tiltX=0;viewer.tiltY=0;
   viewer.mode=(product.foto_frontal_path && product.foto_trasera_path && !String(product.foto_frontal_path).startsWith('/demo/') && !String(product.foto_trasera_path).startsWith('/demo/') && !product.foto_lateral_derecha_path && !product.foto_lateral_izquierda_path)?'rig':viewer.frames.length>1?'frames':'single';
   $('detail-auto').textContent=viewer.frames.length===1?'Movimiento automático':'Giro automático';
   $('turntable-rig').hidden=viewer.mode!=='rig';$('turntable-card').hidden=viewer.mode==='rig';
   if(viewer.mode==='rig'){$('turntable-front').src=publicImageUrl(product.foto_frontal_path);$('turntable-back').src=publicImageUrl(product.foto_trasera_path);}
-  $('turntable-card').style.transform='rotateY(0deg) rotateX(0deg)';
+  $('detail-viewer').classList.remove('is-dragging');paintTilt();
   if(viewer.frames.length)drawFrame({animate:false});
   else { $('turntable-image').removeAttribute('src');$('detail-angle-label').textContent='Foto por agregar';}
   const spec=specifications(product);const root=$('detail-spec-list');root.replaceChildren();
@@ -129,28 +142,97 @@ function openProduct(product){
 }
 function closeProduct(){clearTimer();if($('product-dialog').open)$('product-dialog').close();document.body.classList.remove('dialog-open');state.current=null;const u=new URL(location.href);u.searchParams.delete('modelo');history.replaceState({},'',u);}
 async function shareProduct(){if(!state.current)return;const url=new URL(location.href);url.searchParams.set('modelo',state.current.slug);try{if(navigator.share)await navigator.share({title:`${state.current.marca} ${state.current.modelo}`,url:url.href});else{await navigator.clipboard.writeText(url.href);toast('Enlace copiado.');}}catch(err){if(err.name!=='AbortError')toast('No se pudo compartir.','error');}}
+function spinRig(timestamp){
+  if(viewer.rafId===null || viewer.mode!=='rig')return;
+  if(viewer.rafLast) viewer.angle+=Math.min(50,timestamp-viewer.rafLast)*0.068;
+  viewer.rafLast=timestamp;
+  paintRig();
+  viewer.rafId=requestAnimationFrame(spinRig);
+}
 function setAuto(){
- if(viewer.auto || $('turntable-card').classList.contains('is-sway') || $('turntable-rig').classList.contains('is-spinning')){clearTimer();return;}
- if(viewer.frames.length===1){$('turntable-card').classList.add('is-sway');$('detail-auto').textContent='Pausar movimiento';return;}
- if(viewer.mode==='rig'){$('turntable-rig').classList.add('is-spinning');$('detail-auto').textContent='Pausar giro';return;}
- if(viewer.frames.length<2)return;
- $('detail-auto').textContent='Pausar giro';viewer.auto=setInterval(()=>setFrame(viewer.index+1),1450);
+  if(viewer.auto!==null || viewer.rafId!==null || $('turntable-card').classList.contains('is-sway')){clearTimer();return;}
+  if(viewer.frames.length===1){
+    $('turntable-card').classList.add('is-sway');
+    $('detail-auto').textContent='Pausar movimiento';
+    return;
+  }
+  if(viewer.mode==='rig'){
+    $('turntable-rig').classList.add('is-spinning');
+    $('detail-auto').textContent='Pausar giro';
+    viewer.rafLast=0;
+    viewer.rafId=requestAnimationFrame(spinRig);
+    return;
+  }
+  if(viewer.frames.length<2)return;
+  $('detail-auto').textContent='Pausar giro';
+  viewer.auto=setInterval(()=>setFrame(viewer.index+1),1650);
 }
 function initViewer(){
- const stage=$('detail-viewer'),card=$('turntable-card'),rig=$('turntable-rig');
- stage.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;viewer.pointerX=e.clientX;viewer.accumulated=0;viewer.lastMove=e.clientX;clearTimer();stage.setPointerCapture?.(e.pointerId);});
- stage.addEventListener('pointermove',e=>{
-   if(viewer.pointerX===null)return;const dx=e.clientX-viewer.pointerX;const prevClientX=viewer.lastMove;viewer.lastMove=e.clientX;
-   if(viewer.mode==='rig'){viewer.angle+= (e.clientX-prevClientX)*.75;rig.style.transform=`translateX(-50%) rotateY(${viewer.angle}deg) rotateX(4deg)`;const back=((viewer.angle%360+360)%360)>90 && ((viewer.angle%360+360)%360)<270;viewer.index=back?1:0;$('detail-angle-label').textContent=back?'TAPA TRASERA · GIRO 3D':'PANTALLA · GIRO 3D';viewer.lastMove=e.clientX;return;}
-   const tilt=Math.max(-22,Math.min(22,dx*.28));const angleX=Math.max(-8,Math.min(8,(e.clientY-stage.getBoundingClientRect().top-stage.clientHeight/2)*-.028));card.style.transform=`perspective(1100px) rotateY(${tilt}deg) rotateX(${angleX}deg) scale(1.025)`;
-   if(viewer.frames.length>1){ const step=dx-viewer.accumulated;if(Math.abs(step)>73){setFrame(viewer.index+(step<0?1:-1),{animate:false});viewer.accumulated=dx;}}
- });
- function release(e){if(viewer.pointerX===null)return;const dx=(e?.clientX??viewer.lastMove)-viewer.pointerX;if(viewer.mode!=='rig' && viewer.frames.length>1 && Math.abs(dx)>35 && Math.abs(dx-viewer.accumulated)>28)setFrame(viewer.index+(dx<0?1:-1));viewer.pointerX=null;viewer.accumulated=0;if(viewer.mode!=='rig')card.style.transform='rotateY(0deg) rotateX(0deg)';}
- stage.addEventListener('pointerup',release);stage.addEventListener('pointercancel',()=>release());stage.addEventListener('lostpointercapture',()=>release());
- stage.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();setFrame(viewer.index+(e.key==='ArrowRight'?1:-1));}});
- $('detail-prev').addEventListener('click',()=>{clearTimer();setFrame(viewer.index-1);});
- $('detail-next').addEventListener('click',()=>{clearTimer();setFrame(viewer.index+1);});
- $('detail-auto').addEventListener('click',setAuto);
+  const stage=$('detail-viewer');
+  const release=(event, cancelled=false)=>{
+    if(viewer.pointerId===null || (event && event.pointerId!==viewer.pointerId))return;
+    const id=viewer.pointerId;
+    const dx=(event?.clientX ?? viewer.lastX)-viewer.startX;
+    const dy=(event?.clientY ?? viewer.lastY)-viewer.startY;
+    const isHorizontal=viewer.axis==='horizontal';
+    viewer.pointerId=null;
+    viewer.axis='pending';
+    stage.classList.remove('is-dragging');
+    if(stage.hasPointerCapture?.(id)){
+      try{stage.releasePointerCapture(id);}catch{}
+    }
+    if(viewer.mode==='frames'){
+      viewer.tiltX=0;viewer.tiltY=0;paintTilt();
+      const direction=!cancelled && isHorizontal ? swipeDirection(dx,dy,viewer.pointerType) : 0;
+      if(direction) setFrame(viewer.index+direction);
+      $('viewer-help').textContent='Desliza a izquierda o derecha para cambiar de fotografía.';
+    }
+    // Una foto: conserva inclinación. Dos caras: conserva ángulo real alcanzado.
+  };
+  stage.addEventListener('pointerdown',e=>{
+    if(!state.current || viewer.pointerId!==null)return;
+    if(e.pointerType==='mouse' && e.button!==0)return;
+    if(e.isPrimary===false)return;
+    clearTimer();
+    viewer.pointerId=e.pointerId;viewer.pointerType=e.pointerType || 'mouse';
+    viewer.axis='pending';
+    viewer.startX=viewer.lastX=e.clientX;viewer.startY=viewer.lastY=e.clientY;
+    viewer.baseAngle=viewer.angle;
+    viewer.baseTiltX=viewer.tiltX;viewer.baseTiltY=viewer.tiltY;
+    try{stage.setPointerCapture?.(e.pointerId);}catch{}
+  });
+  stage.addEventListener('pointermove',e=>{
+    if(viewer.pointerId!==e.pointerId)return;
+    const dx=e.clientX-viewer.startX,dy=e.clientY-viewer.startY;
+    viewer.lastX=e.clientX;viewer.lastY=e.clientY;
+    if(viewer.axis==='pending')viewer.axis=gestureAxis(dx,dy);
+    // No interferir con el scroll natural vertical dentro del diálogo.
+    if(viewer.axis!=='horizontal')return;
+    stage.classList.add('is-dragging');
+    if(viewer.mode==='rig'){
+      viewer.angle=rotationFromDrag(viewer.baseAngle,dx,viewer.pointerType);
+      paintRig();
+    }else{
+      const tilt=tiltFromDrag(viewer.baseTiltY,viewer.baseTiltX,dx,dy,viewer.pointerType);
+      viewer.tiltY=tilt.y;viewer.tiltX=tilt.x;
+      paintTilt();
+    }
+  });
+  stage.addEventListener('pointerup',e=>release(e));
+  stage.addEventListener('pointercancel',e=>release(e,true));
+  stage.addEventListener('lostpointercapture',e=>release(e,true));
+  stage.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+      e.preventDefault();clearTimer();
+      if(viewer.mode==='single'){
+        viewer.tiltY=Math.max(-32,Math.min(32,viewer.tiltY+(e.key==='ArrowRight'?12:-12)));
+        paintTilt();
+      }else setFrame(viewer.index+(e.key==='ArrowRight'?1:-1));
+    }
+  });
+  $('detail-prev').addEventListener('click',()=>{clearTimer();setFrame(viewer.index-1);});
+  $('detail-next').addEventListener('click',()=>{clearTimer();setFrame(viewer.index+1);});
+  $('detail-auto').addEventListener('click',setAuto);
 }
 function applyCustomLogo(path){const src=publicImageUrl(path);if(!src)return;for(const mark of document.querySelectorAll('.brand__mark')){const img=el('img');img.src=src;img.alt='';img.style.cssText='width:100%;height:100%;object-fit:contain;position:relative;z-index:2';mark.replaceChildren(img);}}
 async function loadCatalog(){
