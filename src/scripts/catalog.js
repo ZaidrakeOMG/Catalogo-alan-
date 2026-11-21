@@ -1,4 +1,4 @@
-import { supabase, TABLES, publicImageUrl, currency, cleanPhone, toast } from '../lib/supabase.js';
+import { supabase, TABLES, publicImageUrl, currency, cleanPhone, DEFAULT_WHATSAPP, toast } from '../lib/supabase.js';
 import { gestureAxis, tiltFromDrag, rotationFromDrag, swipeDirection, isBackFacing } from '../lib/visor-touch.js';
 
 const $ = (id) => document.getElementById(id);
@@ -73,7 +73,7 @@ function specifications(product){
   return values.map(([k,v])=>[labels[k]||k.replaceAll('_',' ').replace(/^./,s=>s.toUpperCase()),String(v)]);
 }
 function whatsappLink(product){
-  const number=cleanPhone(state.settings.whatsapp_numero);if(!/^\d{8,15}$/.test(number))return '';
+  const number=cleanPhone(state.settings.whatsapp_numero || DEFAULT_WHATSAPP);if(!/^\d{8,15}$/.test(number))return '';
   const name=[product.marca,product.modelo,product.capacidad].filter(Boolean).join(' ');
   const link=new URL(window.location.origin + window.location.pathname);link.searchParams.set('modelo', product.slug);
   const mensaje=`Hola, me interesa comprar el ${name} de GRIPXELL.\n\nAquí está el modelo que elegí: ${link.href}\n\n¿Me confirmas disponibilidad y precio?`;
