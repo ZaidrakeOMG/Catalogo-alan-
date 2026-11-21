@@ -21,7 +21,7 @@ jobs:
           echo "Origen: $(git -C "$RUNNER_TEMP/catalogo-original" rev-parse --short HEAD)"
       - name: Copiar código, fotos, videos, portadas y configuraciones
         run: |
-          rsync -a --delete --exclude='.git/' "$RUNNER_TEMP/catalogo-original/" ./
+          rsync -a --delete --exclude='.git/' --exclude='.github/workflows/' "$RUNNER_TEMP/catalogo-original/" ./
           echo "Archivos copiados: $(find . -type f -not -path './.git/*' | wc -l)"
           test -f package.json
           test -f astro.config.mjs
