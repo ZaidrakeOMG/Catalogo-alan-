@@ -80,14 +80,15 @@ async function handleLogout() {
 async function refreshDashboard() {
   const [productsResponse, settingsResponse] = await Promise.all([
     supabase().from(TABLES.products).select('*').order('creado_en', { ascending: false }),
-    supabase().from(TABLES.settings).select('*').eq('id', 1).single(),
+    supabase().from(TABLES.settings).select('*').eq('id', 1).maybeSingle(),
   ]);
-  if (productsResponse.error || settingsResponse.error) {
-    const msg = errorText(productsResponse.error || settingsResponse.error);
+  if (productsResponse.error) {
+    const msg = errorText(productsResponse.error);
     toast(`No se pudieron cargar los datos: ${msg}`, 'error');
     throw new Error(msg);
   }
   state.products = productsResponse.data || [];
+  if (settingsResponse.error) console.warn('GRIPXELL: No se pudo consultar la configuración:', settingsResponse.error);
   state.settings = settingsResponse.data || {};
   $('stat-total').textContent = state.products.length;
   $('stat-published').textContent = state.products.filter((p) => p.publicado).length;
@@ -161,7 +162,7 @@ async function toggleProductVisibility(product) {
     return;
   }
   try {
-    const { error } = await supabase().from(TABLES.products).update({publicado: !product.publicado}).eq('id', product.id);
+    const { error } = await supabase().from(TABLES.products).update({publicado: !product.publicado}).eq('id', product.id).select('id').single();
     if (error) throw error;
     toast(product.publicado ? 'Modelo oculto del catálogo.' : 'Modelo publicado en el catálogo.');
     await refreshDashboard();
