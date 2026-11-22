@@ -55,17 +55,21 @@ import '../styles/admin-premium.css';
       <div class="editor-header"><div><div class="eyebrow"><span class="dot-live"></span> EDITOR DE PRODUCTOS</div><h2 id="editor-title">Agregar celular</h2><p>Información, fotografías y publicación en un mismo lugar.</p></div><button type="button" id="editor-close" class="dialog-close" aria-label="Cerrar formulario">×</button></div>
       <div class="editor-body">
         <div class="editor-form-content">
+        <div class="editor-workflow" aria-label="Formas de cargar un producto">
+          <div><span>OPCIÓN 01</span><strong>Ficha del proveedor + OCR</strong><small>Sube una imagen con características; extraemos el texto y recortamos el celular.</small></div>
+          <div><span>OPCIÓN 02</span><strong>Fotografía + captura manual</strong><small>Agrega una foto del teléfono y escribe modelo, memoria, cámara y descripción a mano.</small></div>
+        </div>
         <section class="import-card" aria-labelledby="import-title">
           <div class="import-card__intro"><span class="eyebrow">NUEVO · IMPORTACIÓN INTELIGENTE</span><h3 id="import-title">Sube la ficha y nosotros preparamos el modelo.</h3><p>Si tienes una imagen con el teléfono a la izquierda y las especificaciones a la derecha, procesaremos el recorte como <strong>PNG transparente</strong> y reconoceremos el texto mediante OCR. Revisa los campos antes de publicar.</p></div>
           <div class="import-card__layout">
             <label class="import-card__upload" for="provider-sheet"><span class="import-card__upload-icon" aria-hidden="true">▧</span><strong>Seleccionar ficha de proveedor</strong><small>JPG, PNG o WebP · Hasta 24 MB</small><input type="file" id="provider-sheet" accept="image/png,image/jpeg,image/webp,image/avif,image/heic,image/heif" /></label>
-            <div class="import-card__process"><div class="import-card__cut-preview" id="import-result-preview" aria-live="polite"><span>Tu teléfono sin fondo aparecerá aquí.</span></div><p id="import-status" role="status">El recorte y el OCR se realizan al elegir la imagen.</p></div>
+            <div class="import-card__process"><div class="import-card__cut-preview" id="import-result-preview" aria-live="polite"><span>Tu teléfono sin fondo aparecerá aquí.</span></div><p id="import-status" role="status">El recorte y el OCR se realizan al elegir la imagen. Si solo tienes una foto, ignora esta sección y captura los datos abajo.</p></div>
           </div>
           <div class="import-card__controls"><label class="field"><span>Ancho de la zona del teléfono</span><input type="range" id="crop-sheet-percent" min="38" max="78" value="62" step="1" /><small id="crop-sheet-value">62 % del ancho de la ficha</small></label><button type="button" id="import-retry" class="btn btn--ghost">Reprocesar imagen</button><label class="check-tile"><input type="checkbox" id="import-overwrite" /><span><strong>Actualizar campos existentes</strong><small>Útil al reemplazar una ficha de un modelo.</small></span></label></div>
           <details id="import-ocr-details" class="import-card__raw" hidden><summary>Ver texto leído por OCR</summary><pre id="import-ocr-text"></pre></details>
           <p class="import-card__caution">OCR orientativo: confirma los números de cámaras, memoria y sistema operativo con la ficha original. Si el fondo no se recorta correctamente, puedes subir una PNG con transparencia en los campos de fotos.</p>
         </section>
-        <div class="editor-section-heading"><span>01</span><div><h3>Información del equipo</h3><p>Datos que verán tus clientes.</p></div></div>
+        <div class="editor-section-heading" id="editor-manual"><span>01</span><div><h3>Información del equipo</h3><p>Datos que verán tus clientes.</p></div></div>
         <div class="fields-two"><label class="field"><span>Marca *</span><input name="marca" required maxlength="80" placeholder="Motorola" /></label><label class="field"><span>Modelo *</span><input name="modelo" required maxlength="120" placeholder="Moto G06" /></label></div>
         <div class="fields-two"><label class="field"><span>Color</span><input name="color" maxlength="100" placeholder="Verde azulado" /></label><label class="field"><span>Capacidad</span><input name="capacidad" maxlength="70" placeholder="64 GB" /></label></div>
         <div class="fields-two"><label class="field"><span>Precio (MXN) · opcional</span><input name="precio_mxn" type="number" min="0" max="99999999" step="0.01" placeholder="Ej. 2499" /></label><label class="field"><span>Orden de aparición</span><input name="orden" type="number" step="1" value="0" /></label></div>
