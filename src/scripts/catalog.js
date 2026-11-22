@@ -49,14 +49,24 @@ function cardFor(product) {
   visual.append(photo);
   if (product.destacado || !product.disponible) visual.append(el('span','product-card__tag'+(!product.disponible?' product-card__tag--soldout':''),product.disponible?'DESTACADO':'AGOTADO'));
   const count=framesFor(product).length;
-  visual.append(el('span','product-card__rotate', count>1?'↔ '+count+' VISTAS':'↗ VER MODELO'));
+  visual.append(el('span','product-card__rotate', count>1?'↔ '+count+' VISTAS':'↗ VER EQUIPO'));visual.append(el('span','storefront-card__image-caption','GRIPXELL / FICHA DE PRODUCTO'));
   visual.addEventListener('click',()=>openProduct(product));
   const body=el('div','product-card__body');body.append(el('span','product-card__brand',product.marca));
   body.append(el('h3','',product.modelo));
   body.append(el('p','product-card__subtitle',[product.capacidad,product.color].filter(Boolean).join(' · ') || 'Explora las características'));
+  const line=el('div','storefront-card__specs');
+  const data=product.especificaciones&&typeof product.especificaciones==='object'?product.especificaciones:{};
+  const description=String(product.descripcion||'');
+  const primary=[
+    product.capacidad ? ['MEMORIA',product.capacidad] : null,
+    (data.pantalla||description.match(/(?:^|\n)Pantalla\s*:\s*([^\n]+)/i)?.[1]) ? ['PANTALLA',String(data.pantalla||description.match(/(?:^|\n)Pantalla\s*:\s*([^\n]+)/i)?.[1])] : null,
+    (data.red||description.match(/(?:^|\n)Red\s*:\s*([^\n]+)/i)?.[1]) ? ['RED',String(data.red||description.match(/(?:^|\n)Red\s*:\s*([^\n]+)/i)?.[1])] : null,
+  ].filter(Boolean).slice(0,3);
+  for(const [label,value] of primary){const tag=el('span','storefront-card__spec');tag.append(el('small','',label),el('strong','',value));line.append(tag);}
+  if(primary.length)body.append(line);
   const bottom=el('div','product-card__bottom');bottom.append(el('strong','',currency(product.precio_mxn)));
   const btn=el('button','product-card__more','↗');btn.type='button';btn.setAttribute('aria-label',`Ver ${product.marca} ${product.modelo}`);btn.addEventListener('click',()=>openProduct(product));
-  bottom.append(btn);body.append(bottom);card.append(visual,body);
+  bottom.append(btn);body.append(bottom);const more=el('button','storefront-card__details','Ver detalles y consultar →');more.type='button';more.addEventListener('click',()=>openProduct(product));body.append(more);card.append(visual,body);
   return card;
 }
 function renderProducts(){
