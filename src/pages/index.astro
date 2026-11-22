@@ -1,9 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Brand from '../components/Brand.astro';
+import '../styles/storefront-v6.css';
 ---
 <Layout title="GRIPXELL | Encuentra tu próximo celular">
-  <header class="site-header" id="inicio">
+  <header class="site-header storefront-header" id="inicio">
     <div class="container site-header__inner">
       <Brand />
       <nav class="main-nav" aria-label="Navegación principal">
@@ -11,19 +12,22 @@ import Brand from '../components/Brand.astro';
         <a class="main-nav__link" href="#catalogo">Modelos</a>
         <a class="main-nav__link" href="#como-funciona">Cómo comprar</a>
       </nav>
-      <a class="header-action" href="#catalogo">Ver catálogo <span aria-hidden="true">↗</span></a>
+      <div class="storefront-header__actions">
+        <a class="header-action" href="#catalogo">Ver modelos <span aria-hidden="true">↗</span></a>
+        <a class="storefront-admin" href="/admin/" aria-label="Abrir panel de administración para subir productos"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Administrar</span></a>
+      </div>
     </div>
   </header>
 
   <main>
-    <section class="hero hero--v2" aria-labelledby="hero-title">
+    <section class="hero hero--v2 storefront-hero" aria-labelledby="hero-title">
       <div class="container hero__grid">
         <div class="hero__content">
-          <div class="eyebrow eyebrow--light"><span class="eyebrow__pulse"></span> SMART PHONES Y MÁS · GRIPXELL</div>
-          <h1 id="hero-title">Elige tu<br/><span>próximo celular.</span><br/>A tu manera.</h1>
-          <p>Modelos para cada estilo. Encuentra sus características, explora sus fotografías desde diferentes ángulos y consulta tu compra directamente por WhatsApp.</p>
+          <div class="eyebrow eyebrow--light"><span class="eyebrow__pulse"></span> GRIPXELL · EXPERIENCIA DE COMPRA 2026</div>
+          <h1 id="hero-title">Tu próximo<br/><span>celular te</span><br/>está esperando.</h1>
+          <p>Explora modelos, descubre sus especificaciones y mira cada detalle. Cuando encuentres el indicado, habla con nosotros por WhatsApp con el enlace de tu equipo.</p>
           <div class="hero__actions">
-            <a href="#catalogo" class="btn btn--mint btn--large">Explorar modelos <span aria-hidden="true">↗</span></a>
+            <a href="#catalogo" class="btn btn--mint btn--large">Descubrir el catálogo <span aria-hidden="true">↗</span></a><a class="storefront-hero__secondary" href="https://wa.me/5218713285416?text=Hola%2C%20quisiera%20informaci%C3%B3n%20sobre%20los%20celulares%20de%20GRIPXELL" target="_blank" rel="noopener noreferrer">Preguntar por WhatsApp ↗</a>
             <span class="hero__hint"><span class="hero__hint-dot"></span> Fotografías reales del catálogo</span>
           </div>
           <div class="hero__footnote"><span class="hero__footnote-line"></span> DEL MODELO QUE TE GUSTA AL MENSAJE PARA COMPRAR</div>
@@ -34,7 +38,7 @@ import Brand from '../components/Brand.astro';
           <div class="hero-gallery__card hero-gallery__card--left"><img src="/demo/naomicase-romy-v2.png" alt="Naomicase Romy V2 rojo" loading="eager" /><span>NAOMICASE <b>ROMY V2</b></span></div>
           <div class="hero-gallery__card hero-gallery__card--center"><img src="/demo/xiaomi-redmi-a7-pro.png" alt="Xiaomi Redmi A7 Pro azul" loading="eager" /><span>XIAOMI <b>REDMI A7 PRO</b></span></div>
           <div class="hero-gallery__card hero-gallery__card--right"><img src="/demo/zte-blade-v70-max.png" alt="ZTE Blade V70 Max" loading="eager" /><span>ZTE <b>V70 MAX</b></span></div>
-          <div class="hero-gallery__bottom">UNA SELECCIÓN PARA TI <span aria-hidden="true">↗</span></div>
+          <div class="hero-gallery__bottom">TU PRÓXIMO EQUIPO ESTÁ AQUÍ <span aria-hidden="true">↗</span></div>
         </div>
       </div>
       <div class="hero__edgeword" aria-hidden="true">GRIPXELL</div>
@@ -48,26 +52,32 @@ import Brand from '../components/Brand.astro';
       </div>
     </section>
 
-    <section class="catalog-section catalog-section--v2" id="catalogo" aria-labelledby="catalog-title">
+    <section class="catalog-section catalog-section--v2 storefront-catalog" id="catalogo" aria-labelledby="catalog-title">
       <div class="container">
         <div class="section-head">
-          <div><div class="eyebrow"><span class="eyebrow__line"></span> EQUIPOS DISPONIBLES PARA CONSULTAR</div><h2 id="catalog-title">Tu modelo <em>ideal.</em></h2><p>Encuentra el celular que se adapte a lo que necesitas.</p></div>
+          <div><div class="eyebrow"><span class="eyebrow__line"></span> EQUIPOS DISPONIBLES PARA CONSULTAR</div><h2 id="catalog-title">Elige el que <em>va contigo.</em></h2><p>Fotografías recortadas, fichas claras y consulta directa. Desliza, compara características y descubre tu siguiente equipo.</p></div>
           <span class="section-head__count" id="product-count">Cargando modelos...</span>
         </div>
-        <div class="catalog-tools">
+        <div class="storefront-catalog__toolbar-top"><span>EXPLORA LA COLECCIÓN</span><span>Filtra por marca o busca tu modelo favorito</span></div><div class="catalog-tools">
           <div class="brand-filters" id="brand-filters" aria-label="Filtrar por marca"><button type="button" class="filter-chip is-active" data-brand="all">Todos</button></div>
           <div class="catalog-tools__right">
             <label class="search-wrap"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="sr-only">Buscar celular</span><input id="catalog-search" type="search" placeholder="Buscar celular por marca o modelo..." autocomplete="off" /></label>
             <label class="sort-wrap"><span class="sr-only">Ordenar catálogo</span><select id="catalog-sort"><option value="default">Recomendados</option><option value="name">Nombre A–Z</option><option value="price-asc">Menor precio</option><option value="price-desc">Mayor precio</option></select></label>
           </div>
         </div>
-        <div class="catalog-grid" id="product-grid" aria-live="polite"><div class="loading-state"><span class="spinner"></span><strong>Cargando equipos...</strong><small>Conectando con nuestro catálogo</small></div></div>
+        <div class="catalog-grid storefront-grid" id="product-grid" aria-live="polite"><div class="loading-state"><span class="spinner"></span><strong>Cargando equipos...</strong><small>Conectando con nuestro catálogo</small></div></div>
       </div>
     </section>
 
-    <section class="contact-banner"><div class="container contact-banner__inner"><div><div class="eyebrow eyebrow--light">TU COMPRA, EN UN MENSAJE</div><h2>¿Ya encontraste<br/>el que quieres?</h2></div><a href="#catalogo" class="btn btn--mint btn--large">Elegir mi equipo <span aria-hidden="true">↗</span></a></div></section>
+    <section class="storefront-service" aria-label="Por qué elegir GRIPXELL">
+      <div class="container storefront-service__inner">
+        <div class="storefront-service__title"><span>GRIPXELL EN CADA DETALLE</span><h2>Encuentra tu equipo.<br/><em>Decide con confianza.</em></h2></div>
+        <div class="storefront-service__benefits"><article><span>01 / FICHA TÉCNICA</span><h3>Todo más claro</h3><p>Conoce memoria, cámaras, pantalla y demás características en un solo lugar.</p></article><article><span>02 / FOTOGRAFÍAS</span><h3>Míralo de cerca</h3><p>Explora las fotos disponibles de cada modelo en una vista interactiva.</p></article><article><span>03 / CONTACTO DIRECTO</span><h3>Pregunta sin rodeos</h3><p>Elige un teléfono y envíanos por WhatsApp su enlace exacto.</p></article></div>
+      </div>
+    </section>
+    <section class="contact-banner storefront-contact"><div class="container contact-banner__inner"><div><div class="eyebrow eyebrow--light">TU COMPRA, EN UN MENSAJE</div><h2>¿Ya encontraste<br/>el que quieres?</h2></div><a href="https://wa.me/5218713285416?text=Hola%2C%20quiero%20conocer%20el%20cat%C3%A1logo%20GRIPXELL" target="_blank" rel="noopener noreferrer" class="btn btn--mint btn--large">Hablar por WhatsApp <span aria-hidden="true">↗</span></a></div></section>
   </main>
-  <footer class="site-footer"><div class="container site-footer__inner"><Brand small={true}/><p>Tu próximo celular comienza aquí.</p><span>© <span id="footer-year">2026</span> GRIPXELL</span><a class="site-footer__admin" href="/admin/" aria-label="Acceder al panel administrador">Administración ↗</a></div></footer>
+  <footer class="site-footer"><div class="container site-footer__inner"><Brand small={true}/><p>Tu próximo celular comienza aquí.</p><span>© <span id="footer-year">2026</span> GRIPXELL</span><a class="site-footer__admin" href="/admin/" aria-label="Acceder al panel administrador">Administrar productos ↗</a><span class="storefront-version" title="Identificador visible del despliegue">GRIPXELL V6 · NOV 2026</span></div></footer>
 
   <dialog id="product-dialog" class="product-dialog product-dialog--v2" aria-labelledby="dialog-title">
     <div class="product-dialog__shell">
