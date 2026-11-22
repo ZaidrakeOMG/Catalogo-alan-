@@ -1,0 +1,9 @@
+{
+  "app": "GRIPXELL",
+  "version": "6.0.0",
+  "label": "CATALOGO-V6-ADMIN-VISIBLE",
+  "production_branch": "main",
+  "admin": "/admin/",
+  "shop": "/",
+  "whatsapp": "5218713285416"
+}
